@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gongan.mapper.SysRoleMapper">
+
+    <resultMap id="BaseResultMap" type="com.gongan.entity.SysRole">
+        <id column="id" property="id"/>
+        <result column="role_code" property="roleCode"/>
+        <result column="role_name" property="roleName"/>
+        <result column="role_type" property="roleType"/>
+        <result column="description" property="description"/>
+        <result column="org_id" property="orgId"/>
+        <result column="status" property="status"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="created_by" property="createdBy"/>
+        <result column="created_time" property="createdTime"/>
+        <result column="updated_by" property="updatedBy"/>
+        <result column="updated_time" property="updatedTime"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <!-- 根据用户ID查询角色列表 -->
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT r.*
+        FROM sys_role r
+        INNER JOIN sys_user_role ur ON r.id = ur.role_id
+        WHERE ur.user_id = #{userId} AND r.deleted = 0 AND r.status = 1
+        ORDER BY r.sort_order
+    </select>
+
+    <!-- 删除角色菜单关联 -->
+    <delete id="deleteRoleMenus">
+        DELETE FROM sys_role_menu WHERE role_id = #{roleId}
+    </delete>
+
+    <!-- 批量插入角色菜单关联 -->
+    <insert id="insertRoleMenus">
+        INSERT INTO sys_role_menu (role_id, menu_id) VALUES
+        <foreach collection="menuIds" item="menuId" separator=",">
+            (#{roleId}, #{menuId})
+        </foreach>
+    </insert>
+
+    <!-- 查询角色的菜单ID列表 -->
+    <select id="selectMenuIdsByRoleId" resultType="java.lang.Long">
+        SELECT menu_id FROM sys_role_menu WHERE role_id = #{roleId}
+    </select>
+
+</mapper>

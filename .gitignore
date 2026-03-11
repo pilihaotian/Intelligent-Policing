@@ -1,0 +1,5 @@
+/gongan-backend/target/
+/gongan-frontend/dist/
+/gongan-frontend/node_modules/
+/uploads/
+/.idea/
