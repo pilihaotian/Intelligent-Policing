@@ -346,28 +346,32 @@ CREATE TABLE nav_history (
 );
 
 -- =====================================================
--- 5. 反欺诈模块表
+-- 5. 刑侦研判模块表
 -- =====================================================
 
--- 可疑人员表
+-- 重点人员表
 DROP TABLE IF EXISTS fraud_suspicious_customer CASCADE;
 CREATE TABLE fraud_suspicious_customer (
     id BIGSERIAL PRIMARY KEY,
+    customer_no VARCHAR(50) NOT NULL UNIQUE,
     customer_name VARCHAR(100) NOT NULL,
-    id_card VARCHAR(18),
-    phone VARCHAR(20),
+    id_type VARCHAR(20) DEFAULT 'ID_CARD',
+    id_no VARCHAR(18),
     gender SMALLINT,
     birth_date DATE,
-    occupation VARCHAR(100),
+    phone VARCHAR(20),
+    email VARCHAR(100),
     address VARCHAR(500),
-    account_no VARCHAR(50),
-    open_account_date DATE,
-    account_status VARCHAR(20),
+    customer_type VARCHAR(50),
     risk_level VARCHAR(20),
-    risk_score INT,
+    risk_score DECIMAL(5,2),
+    blacklist_flag SMALLINT DEFAULT 0,
+    watchlist_flag SMALLINT DEFAULT 0,
+    suspicious_type VARCHAR(100),
+    first_suspicious_time TIMESTAMP,
+    last_suspicious_time TIMESTAMP,
     suspicious_count INT DEFAULT 0,
-    risk_features TEXT,
-    mark_time TIMESTAMP,
+    status SMALLINT DEFAULT 1,
     created_by VARCHAR(50),
     created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_by VARCHAR(50),
@@ -375,26 +379,28 @@ CREATE TABLE fraud_suspicious_customer (
     deleted SMALLINT DEFAULT 0
 );
 
--- 交易流水表
+-- 资金流水表
 DROP TABLE IF EXISTS fraud_transaction CASCADE;
 CREATE TABLE fraud_transaction (
     id BIGSERIAL PRIMARY KEY,
-    customer_id BIGINT,
-    transaction_no VARCHAR(100),
-    transaction_time TIMESTAMP,
-    transaction_type VARCHAR(50),
-    amount DECIMAL(18,2),
+    transaction_no VARCHAR(100) NOT NULL UNIQUE,
+    customer_id BIGINT NOT NULL,
+    account_no VARCHAR(50),
+    counter_account_no VARCHAR(50),
+    counter_account_name VARCHAR(100),
+    transaction_type VARCHAR(50) NOT NULL,
+    amount DECIMAL(18,2) NOT NULL,
     currency VARCHAR(10) DEFAULT 'CNY',
-    balance DECIMAL(18,2),
-    counter_account VARCHAR(50),
-    counter_name VARCHAR(100),
-    counter_bank VARCHAR(100),
+    balance_before DECIMAL(18,2),
+    balance_after DECIMAL(18,2),
+    transaction_time TIMESTAMP NOT NULL,
     channel VARCHAR(50),
+    device_id VARCHAR(100),
+    ip_address VARCHAR(50),
     location VARCHAR(200),
-    device_info VARCHAR(500),
-    risk_tag VARCHAR(100),
-    risk_score INT,
-    status VARCHAR(20) DEFAULT 'NORMAL',
+    remark VARCHAR(500),
+    risk_flag SMALLINT DEFAULT 0,
+    risk_score DECIMAL(5,2),
     created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -416,15 +422,16 @@ CREATE TABLE fraud_case_analysis (
     id BIGSERIAL PRIMARY KEY,
     case_no VARCHAR(50) NOT NULL UNIQUE,
     customer_id BIGINT NOT NULL,
-    analysis_result TEXT,
-    red_flags TEXT,
-    conclusion VARCHAR(1000),
-    suggestions VARCHAR(1000),
-    risk_score INT,
-    report_url VARCHAR(500),
-    status VARCHAR(20) DEFAULT 'PENDING',
-    analyst_id BIGINT,
-    analyze_time TIMESTAMP,
+    case_type VARCHAR(50),
+    case_source VARCHAR(50),
+    suspicious_points TEXT,
+    analysis_content TEXT,
+    analysis_report TEXT,
+    confidence DECIMAL(5,2),
+    status SMALLINT DEFAULT 0,
+    handler_id BIGINT,
+    handle_time TIMESTAMP,
+    handle_result VARCHAR(500),
     created_by VARCHAR(50),
     created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_by VARCHAR(50),
@@ -507,6 +514,21 @@ CREATE INDEX idx_sys_menu_parent ON sys_menu(parent_id);
 CREATE INDEX idx_ops_legal_doc_type ON ops_legal_document(doc_type_id);
 CREATE INDEX idx_ai_knowledge_doc_kb ON ai_knowledge_document(kb_id);
 CREATE INDEX idx_ai_chat_msg_session ON ai_chat_message(session_id);
+
+-- 刑侦研判模块索引
+CREATE INDEX idx_fraud_customer_no ON fraud_suspicious_customer(customer_no);
+CREATE INDEX idx_fraud_customer_name ON fraud_suspicious_customer(customer_name);
+CREATE INDEX idx_fraud_customer_risk ON fraud_suspicious_customer(risk_level);
+CREATE INDEX idx_fraud_customer_status ON fraud_suspicious_customer(status);
+
 CREATE INDEX idx_fraud_trans_customer ON fraud_transaction(customer_id);
 CREATE INDEX idx_fraud_trans_time ON fraud_transaction(transaction_time);
+CREATE INDEX idx_fraud_trans_type ON fraud_transaction(transaction_type);
+CREATE INDEX idx_fraud_trans_risk ON fraud_transaction(risk_flag);
+
+CREATE INDEX idx_fraud_case_customer ON fraud_case_analysis(customer_id);
+CREATE INDEX idx_fraud_case_no ON fraud_case_analysis(case_no);
+CREATE INDEX idx_fraud_case_status ON fraud_case_analysis(status);
+
+-- 反洗钱模块索引
 CREATE INDEX idx_aml_dd_customer ON aml_customer_due_diligence(customer_id);
