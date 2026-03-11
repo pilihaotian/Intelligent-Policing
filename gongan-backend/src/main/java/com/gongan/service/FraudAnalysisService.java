@@ -6,6 +6,7 @@ import com.gongan.entity.FraudCaseAnalysis;
 import com.gongan.entity.FraudSuspiciousCustomer;
 import com.gongan.entity.FraudTransaction;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -24,12 +25,27 @@ public interface FraudAnalysisService extends IService<FraudCaseAnalysis> {
     PageResult<FraudTransaction> pageTransactions(Map<String, Object> params);
 
     /**
-     * AI分析欺诈案例
+     * AI分析欺诈案例（创建新案例）
      */
     Map<String, Object> analyzeCase(Long customerId);
+
+    /**
+     * 重新分析（覆盖已有案例的结果）
+     */
+    Map<String, Object> reanalyzeCase(Long caseId);
 
     /**
      * 生成分析报告
      */
     String generateReport(Long caseId);
+
+    /**
+     * 查询人员的历史案例分析记录
+     */
+    List<FraudCaseAnalysis> listByCustomerId(Long customerId);
+
+    /**
+     * 获取最新案例
+     */
+    FraudCaseAnalysis getLatestByCustomerId(Long customerId);
 }

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -67,10 +68,17 @@ public class FraudAnalysisController {
         return ApiResponse.success(fraudAnalysisService.pageTransactions(params));
     }
 
-    @Operation(summary = "AI分析案例")
+    @Operation(summary = "AI分析案例（创建新分析）")
     @PostMapping("/analysis")
     public ApiResponse<Map<String, Object>> analyzeCase(@RequestParam Long customerId) {
         Map<String, Object> result = fraudAnalysisService.analyzeCase(customerId);
+        return ApiResponse.success(result);
+    }
+
+    @Operation(summary = "重新分析（覆盖已有案例结果）")
+    @PostMapping("/analysis/reanalyze/{caseId}")
+    public ApiResponse<Map<String, Object>> reanalyzeCase(@PathVariable Long caseId) {
+        Map<String, Object> result = fraudAnalysisService.reanalyzeCase(caseId);
         return ApiResponse.success(result);
     }
 
@@ -85,5 +93,17 @@ public class FraudAnalysisController {
     @GetMapping("/case/{id}")
     public ApiResponse<FraudCaseAnalysis> getCase(@PathVariable Long id) {
         return ApiResponse.success(fraudAnalysisService.getById(id));
+    }
+
+    @Operation(summary = "查询人员的历史案例分析")
+    @GetMapping("/case/list/{customerId}")
+    public ApiResponse<List<FraudCaseAnalysis>> listCasesByCustomer(@PathVariable Long customerId) {
+        return ApiResponse.success(fraudAnalysisService.listByCustomerId(customerId));
+    }
+
+    @Operation(summary = "获取人员最新的案例分析")
+    @GetMapping("/case/latest/{customerId}")
+    public ApiResponse<FraudCaseAnalysis> getLatestCase(@PathVariable Long customerId) {
+        return ApiResponse.success(fraudAnalysisService.getLatestByCustomerId(customerId));
     }
 }
