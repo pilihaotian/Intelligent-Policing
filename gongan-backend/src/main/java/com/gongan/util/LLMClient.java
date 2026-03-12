@@ -77,6 +77,60 @@ public class LLMClient {
     }
 
     /**
+     * JSON结构化输出专用：temperature=0，强制JSON格式（用于意图识别等分类任务）
+     */
+    public String chatJson(List<Map<String, String>> messages, String systemPrompt) {
+        try {
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("model", llmProperties.getModel());
+            requestBody.put("max_tokens", 256);
+            requestBody.put("temperature", 0.0);
+            requestBody.put("response_format", new JSONObject().fluentPut("type", "json_object"));
+
+            JSONArray messagesArray = new JSONArray();
+            if (systemPrompt != null && !systemPrompt.isEmpty()) {
+                JSONObject sysMsg = new JSONObject();
+                sysMsg.put("role", "system");
+                sysMsg.put("content", systemPrompt);
+                messagesArray.add(sysMsg);
+            }
+            for (Map<String, String> message : messages) {
+                JSONObject msg = new JSONObject();
+                msg.put("role", message.get("role"));
+                msg.put("content", message.get("content"));
+                messagesArray.add(msg);
+            }
+            requestBody.put("messages", messagesArray);
+
+            String url = llmProperties.getApiUrl();
+            if (!url.endsWith("/")) url += "/";
+            url += "chat/completions";
+
+            Request request = new Request.Builder()
+                    .url(url)
+                    .header("Authorization", "Bearer " + llmProperties.getApiKey())
+                    .header("Content-Type", "application/json")
+                    .post(RequestBody.create(requestBody.toJSONString(), MediaType.parse("application/json")))
+                    .build();
+
+            try (Response response = getHttpClient().newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    throw new RuntimeException("LLM JSON请求失败: " + response.code());
+                }
+                String responseBody = response.body().string();
+                JSONObject jsonResponse = JSON.parseObject(responseBody);
+                return jsonResponse.getJSONArray("choices")
+                        .getJSONObject(0)
+                        .getJSONObject("message")
+                        .getString("content");
+            }
+        } catch (IOException e) {
+            log.error("LLM JSON请求异常", e);
+            throw new RuntimeException("LLM JSON请求异常: " + e.getMessage());
+        }
+    }
+
+    /**
      * OpenAI 格式的聊天补全
      */
     private String chatOpenAI(List<Map<String, String>> messages, String systemPrompt) {
