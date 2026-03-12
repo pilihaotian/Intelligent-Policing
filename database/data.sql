@@ -141,14 +141,104 @@ INSERT INTO fraud_transaction (transaction_no, customer_id, account_no, counter_
 ('TXN20240118003', 10, '6222000000000010', NULL, NULL, 'DEPOSIT', 50000.00, 'CNY', 40000.00, 90000.00, '2024-01-18 09:00:00', 'COUNTER', NULL, NULL, '济南历下', '工资收入', 0, 20.00, '2024-01-18 09:00:00');
 
 -- INSERT 人员核查数据
-INSERT INTO aml_customer_due_diligence (customer_id, dd_type, dd_reason, customer_info, business_nature, fund_source, status, created_by) VALUES
-(1, 'ENHANCED', '重点人员触发', '{"name":"张三","idCard":"110101199001011234","phone":"13900139001"}', '无业', '不明来源', 'IN_PROGRESS', 'admin'),
-(2, 'SIMPLIFIED', '新关注对象', '{"name":"李四","idCard":"310101198805052345","phone":"13900139002"}', '个体经营', '经营收入', 'COMPLETED', 'admin'),
-(3, 'ENHANCED', '案件关联触发', '{"name":"王五","idCard":"440101199203033456","phone":"13900139003"}', '自由职业', '不明', 'PENDING', 'admin'),
-(6, 'ENHANCED', '网络犯罪关联', '{"name":"孙八","idCard":"420101199408086789","phone":"13900139006"}', 'IT行业', '工资收入', 'IN_PROGRESS', 'admin');
+INSERT INTO aml_customer_due_diligence (customer_id, dd_type, dd_reason, customer_info, business_nature, fund_source, status, ai_analysis, ai_suggestions, created_by) VALUES
+(1, 'ENHANCED', '重点人员触发', '{"name":"张三","idCard":"110101199001011234","phone":"13900139001"}', '无业', '不明来源', 'IN_PROGRESS', 
+'```json
+{
+    "risk_assessment": {
+        "level": "高",
+        "factors": ["无固定职业但有大额资金往来", "资金来源不明确", "多次触发风险预警"]
+    },
+    "suspicious_points": [
+        {"point": "短期内频繁大额转账，与职业状况不符", "severity": "高"},
+        {"point": "资金来源无法合理解释", "severity": "高"},
+        {"point": "与多个可疑账户有交易往来", "severity": "中"}
+    ],
+    "suggestions": ["深入调查资金来源", "追踪交易对手方信息", "调取银行流水详细记录", "核实实际居住地与活动轨迹"],
+    "confidence": 85
+}
+```',
+'["深入调查资金来源","追踪交易对手方信息","调取银行流水详细记录","核实实际居住地与活动轨迹"]', 
+'admin'),
+(2, 'SIMPLIFIED', '新关注对象', '{"name":"李四","idCard":"310101198805052345","phone":"13900139002"}', '个体经营', '经营收入', 'COMPLETED', NULL, NULL, 'admin'),
+(3, 'ENHANCED', '案件关联触发', '{"name":"王五","idCard":"440101199203033456","phone":"13900139003"}', '自由职业', '不明', 'PENDING', NULL, NULL, 'admin'),
+(6, 'ENHANCED', '网络犯罪关联', '{"name":"孙八","idCard":"420101199408086789","phone":"13900139006"}', 'IT行业', '工资收入', 'IN_PROGRESS', NULL, NULL, 'admin'),
+(9, 'ENHANCED', '毒品犯罪关联', '{"name":"郑明","idCard":"350101199512125678","phone":"13900139009"}', '无业', '不明', 'PENDING',
+'```json
+{
+    "risk_assessment": {
+        "level": "极高",
+        "factors": ["涉嫌毒品犯罪", "大额资金频繁流转", "多地区活动轨迹"]
+    },
+    "suspicious_points": [
+        {"point": "与已知毒品犯罪人员有资金往来", "severity": "高"},
+        {"point": "物流费用异常高额，疑似用于运输违禁品", "severity": "高"},
+        {"point": "多地区频繁取现，规避银行监控", "severity": "高"},
+        {"point": "无正当职业却有大量资金流入", "severity": "中"}
+    ],
+    "suggestions": ["立即启动专案调查", "协调多地公安机关联合侦查", "重点监控物流渠道", "调查关联人员网络"],
+    "confidence": 92
+}
+```',
+'["立即启动专案调查","协调多地公安机关联合侦查","重点监控物流渠道","调查关联人员网络"]',
+'system');
 
 -- INSERT 线索数据
-INSERT INTO aml_suspicious_transaction_report (report_no, customer_id, customer_name, id_card, transaction_count, total_amount, alert_type, status, created_by) VALUES
-('CLUE20240001', 1, '张三', '110101199001011234', 15, 1500000.00, '重大线索', 'PENDING', 'system'),
-('CLUE20240002', 3, '王五', '440101199203033456', 22, 2300000.00, '跨区域案件线索', 'CONFIRMED', 'system'),
-('CLUE20240003', 2, '李四', '310101198805052345', 8, 800000.00, '群众举报线索', 'PENDING', 'system');
+INSERT INTO aml_suspicious_transaction_report (report_no, customer_id, customer_name, id_card, transaction_count, total_amount, alert_type, suspicious_types, status, analysis_result, created_by) VALUES
+('CLUE20240001', 1, '张三', '110101199001011234', 15, 1500000.00, '重大线索', '电信诈骗,洗钱', 'PENDING', NULL, 'system'),
+('CLUE20240002', 3, '王五', '440101199203033456', 22, 2300000.00, '跨区域案件线索', '网络赌博,洗钱', 'CONFIRMED', 
+'```json
+{
+    "clue_assessment": {
+        "credibility": "高",
+        "urgency": "紧急",
+        "risk_level": "高"
+    },
+    "crime_pattern": {
+        "type": "网络赌博",
+        "method": "通过第三方支付平台进行资金流转，利用游戏充值、网络服务费等名义掩盖赌博资金"
+    },
+    "key_evidence": [
+        {"evidence": "大额资金频繁转入游戏公司账户", "importance": "高"},
+        {"evidence": "交易时间集中在深夜时段", "importance": "中"},
+        {"evidence": "多个关联账户存在相似交易模式", "importance": "高"}
+    ],
+    "suspicious_points": [
+        {"point": "交易金额与正常游戏消费严重不符", "severity": "高"},
+        {"point": "资金快进快出，符合洗钱特征", "severity": "高"},
+        {"point": "与多个已关闭的赌博网站存在关联", "severity": "高"}
+    ],
+    "investigation_suggestions": ["追踪第三方支付平台资金流向", "调查游戏公司经营资质", "排查关联人员背景", "协调网监部门协助侦查"],
+    "confidence": 88
+}
+```',
+'system'),
+('CLUE20240003', 2, '李四', '310101198805052345', 8, 800000.00, '群众举报线索', '可疑转账', 'PENDING', NULL, 'system'),
+('CLUE20240004', 9, '郑明', '350101199512125678', 18, 580000.00, '重大线索', '毒品犯罪', 'PENDING',
+'```json
+{
+    "clue_assessment": {
+        "credibility": "高",
+        "urgency": "紧急",
+        "risk_level": "高"
+    },
+    "crime_pattern": {
+        "type": "毒品犯罪",
+        "method": "利用物流渠道进行毒品运输，通过大额取现规避银行监控，资金流转复杂难以追踪"
+    },
+    "key_evidence": [
+        {"evidence": "高额物流费用支出记录", "importance": "高"},
+        {"evidence": "多地ATM大额取现行为", "importance": "高"},
+        {"evidence": "与已知毒品犯罪人员有资金往来", "importance": "高"}
+    ],
+    "suspicious_points": [
+        {"point": "物流费用与业务规模严重不匹配", "severity": "高"},
+        {"point": "频繁跨地区取现，规避银行监控", "severity": "高"},
+        {"point": "无正当收入来源却有大额资金流转", "severity": "高"},
+        {"point": "交易对手方多为可疑账户", "severity": "中"}
+    ],
+    "investigation_suggestions": ["立即启动专案侦查程序", "协调禁毒部门联合行动", "重点监控物流渠道", "追踪资金链上下游"],
+    "confidence": 90
+}
+```',
+'system');

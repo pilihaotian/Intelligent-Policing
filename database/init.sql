@@ -2,6 +2,11 @@
 -- 智慧公安管理系统数据库初始化脚本 (PostgreSQL)
 -- =====================================================
 
+-- 删除可能存在的枚举类型（如果之前创建过）
+DROP TYPE IF EXISTS aml_dd_status CASCADE;
+DROP TYPE IF EXISTS aml_report_status CASCADE;
+DROP TYPE IF EXISTS knowledge_doc_status CASCADE;
+
 -- 机构表
 DROP TABLE IF EXISTS sys_org CASCADE;
 CREATE TABLE sys_org (

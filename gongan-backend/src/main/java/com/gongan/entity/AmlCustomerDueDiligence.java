@@ -67,7 +67,7 @@ public class AmlCustomerDueDiligence extends BaseEntity {
     /**
      * 状态
      */
-    private Integer status;
+    private String status;
 
     /**
      * 审核人ID

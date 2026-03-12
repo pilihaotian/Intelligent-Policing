@@ -1,10 +1,13 @@
 <template>
   <div class="due-diligence">
     <a-card title="人员核查">
-      <!-- 搜索表单 -->
       <a-form layout="inline" :model="searchForm" class="search-form">
-        <a-form-item label="人员姓名">
-          <a-input v-model:value="searchForm.customerName" placeholder="请输入人员姓名" allowClear />
+        <a-form-item label="核查类型">
+          <a-select v-model:value="searchForm.ddType" placeholder="请选择" allowClear style="width: 150px">
+            <a-select-option value="ENHANCED">加强核查</a-select-option>
+            <a-select-option value="STANDARD">标准核查</a-select-option>
+            <a-select-option value="SIMPLIFIED">简化核查</a-select-option>
+          </a-select>
         </a-form-item>
         <a-form-item label="核查状态">
           <a-select v-model:value="searchForm.status" placeholder="请选择状态" allowClear style="width: 150px">
@@ -14,19 +17,11 @@
             <a-select-option value="REJECTED">已排除</a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="风险等级">
-          <a-select v-model:value="searchForm.riskLevel" placeholder="请选择" allowClear style="width: 120px">
-            <a-select-option value="HIGH">高风险</a-select-option>
-            <a-select-option value="MEDIUM">中风险</a-select-option>
-            <a-select-option value="LOW">低风险</a-select-option>
-          </a-select>
-        </a-form-item>
         <a-form-item>
           <a-button type="primary" @click="handleSearch">查询</a-button>
         </a-form-item>
       </a-form>
       
-      <!-- 数据表格 -->
       <a-table 
         :dataSource="ddList" 
         :columns="columns" 
@@ -34,11 +29,12 @@
         :pagination="pagination"
         rowKey="id"
         style="margin-top: 16px"
+        @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'riskLevel'">
-            <a-tag :color="getRiskColor(record.riskLevel)">
-              {{ getRiskText(record.riskLevel) }}
+          <template v-if="column.key === 'ddType'">
+            <a-tag :color="getDdTypeColor(record.ddType)">
+              {{ getDdTypeText(record.ddType) }}
             </a-tag>
           </template>
           <template v-if="column.key === 'status'">
@@ -49,14 +45,6 @@
           <template v-if="column.key === 'action'">
             <a-space>
               <a-button type="link" size="small" @click="handleView(record)">查看</a-button>
-              <a-button 
-                type="link" 
-                size="small" 
-                :disabled="record.status === 'COMPLETED'"
-                @click="handleInvestigate(record)"
-              >
-                核查
-              </a-button>
               <a-button type="link" size="small" @click="handleAiAssist(record)">
                 <RobotOutlined /> AI辅助
               </a-button>
@@ -70,67 +58,87 @@
     <a-modal 
       v-model:open="detailVisible" 
       title="人员核查详情"
-      width="800px"
+      width="900px"
       :footer="null"
     >
-      <a-descriptions :column="2" bordered v-if="currentRecord">
-        <a-descriptions-item label="人员姓名">{{ currentRecord.customerName }}</a-descriptions-item>
-        <a-descriptions-item label="人员类型">{{ currentRecord.customerType }}</a-descriptions-item>
-        <a-descriptions-item label="身份证号">{{ currentRecord.idNumber }}</a-descriptions-item>
-        <a-descriptions-item label="风险等级">
-          <a-tag :color="getRiskColor(currentRecord.riskLevel)">
-            {{ getRiskText(currentRecord.riskLevel) }}
-          </a-tag>
-        </a-descriptions-item>
-        <a-descriptions-item label="核查状态">
-          <a-tag :color="getStatusColor(currentRecord.status)">
-            {{ getStatusText(currentRecord.status) }}
-          </a-tag>
-        </a-descriptions-item>
-        <a-descriptions-item label="核查事由">{{ currentRecord.triggerReason }}</a-descriptions-item>
-        <a-descriptions-item label="人员背景" :span="2">{{ currentRecord.backgroundInfo }}</a-descriptions-item>
-        <a-descriptions-item label="核查结论" :span="2">{{ currentRecord.conclusion || '暂无' }}</a-descriptions-item>
-      </a-descriptions>
-    </a-modal>
-    
-    <!-- 核查处理弹窗 -->
-    <a-modal 
-      v-model:open="investigateVisible" 
-      title="人员核查处理"
-      width="700px"
-      @ok="handleSubmitInvestigate"
-    >
-      <a-form :model="investigateForm" :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
-        <a-form-item label="核查方式" required>
-          <a-checkbox-group v-model:value="investigateForm.methods">
-            <a-checkbox value="PHONE">电话核查</a-checkbox>
-            <a-checkbox value="VISIT">实地调查</a-checkbox>
-            <a-checkbox value="DOCUMENT">资料查验</a-checkbox>
-            <a-checkbox value="DATABASE">系统查询</a-checkbox>
-          </a-checkbox-group>
-        </a-form-item>
-        <a-form-item label="核查内容" required>
-          <a-textarea v-model:value="investigateForm.content" :rows="4" placeholder="请输入核查内容" />
-        </a-form-item>
-        <a-form-item label="核查结论" required>
-          <a-radio-group v-model:value="investigateForm.conclusion">
-            <a-radio value="PASS">排除嫌疑</a-radio>
-            <a-radio value="RISK_CONTROL">重点管控</a-radio>
-            <a-radio value="REJECT">立案侦查</a-radio>
-            <a-radio value="FURTHER">进一步核查</a-radio>
-          </a-radio-group>
-        </a-form-item>
-        <a-form-item label="风险评级">
-          <a-select v-model:value="investigateForm.riskLevel" style="width: 150px">
-            <a-select-option value="HIGH">高风险</a-select-option>
-            <a-select-option value="MEDIUM">中风险</a-select-option>
-            <a-select-option value="LOW">低风险</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="备注">
-          <a-textarea v-model:value="investigateForm.remark" :rows="2" />
-        </a-form-item>
-      </a-form>
+      <div v-if="currentRecord">
+        <a-descriptions :column="2" bordered size="small">
+          <a-descriptions-item label="核查类型">
+            <a-tag :color="getDdTypeColor(currentRecord.ddType)">
+              {{ getDdTypeText(currentRecord.ddType) }}
+            </a-tag>
+          </a-descriptions-item>
+          <a-descriptions-item label="核查状态">
+            <a-tag :color="getStatusColor(currentRecord.status)">
+              {{ getStatusText(currentRecord.status) }}
+            </a-tag>
+          </a-descriptions-item>
+          <a-descriptions-item label="核查事由" :span="2">{{ currentRecord.ddReason }}</a-descriptions-item>
+          <a-descriptions-item label="业务性质">{{ currentRecord.businessNature }}</a-descriptions-item>
+          <a-descriptions-item label="资金来源">{{ currentRecord.fundSource }}</a-descriptions-item>
+          <template v-if="customerInfoObj">
+            <a-descriptions-item label="姓名">{{ customerInfoObj.name }}</a-descriptions-item>
+            <a-descriptions-item label="身份证号">{{ customerInfoObj.idCard }}</a-descriptions-item>
+            <a-descriptions-item label="联系电话">{{ customerInfoObj.phone }}</a-descriptions-item>
+            <a-descriptions-item label="地址" v-if="customerInfoObj.address">{{ customerInfoObj.address }}</a-descriptions-item>
+          </template>
+          <a-descriptions-item label="风险评估" :span="2" v-if="riskAssessmentObj">
+            <div><strong>风险等级：</strong>
+              <a-tag :color="getRiskColor(riskAssessmentObj.level)">{{ riskAssessmentObj.level || '未知' }}</a-tag>
+            </div>
+            <div style="margin-top: 8px" v-if="riskAssessmentObj.factors?.length">
+              <strong>风险因素：</strong>
+              <ul style="margin: 4px 0; padding-left: 20px">
+                <li v-for="(factor, i) in riskAssessmentObj.factors" :key="i">{{ factor }}</li>
+              </ul>
+            </div>
+          </a-descriptions-item>
+          <a-descriptions-item label="风险评估" :span="2" v-else>
+            <span style="color: #999">暂无风险评估数据</span>
+          </a-descriptions-item>
+        </a-descriptions>
+        
+        <!-- AI分析结果 -->
+        <div v-if="analysisResult" style="margin-top: 16px">
+          <a-divider>AI分析结果</a-divider>
+          <a-descriptions :column="1" bordered size="small">
+            <a-descriptions-item label="风险评估">
+              <a-space>
+                <a-tag :color="getRiskColor(analysisResult.risk_assessment?.level)">
+                  风险等级: {{ analysisResult.risk_assessment?.level }}
+                </a-tag>
+              </a-space>
+              <div style="margin-top: 8px">
+                <strong>风险因素:</strong>
+                <ul style="margin: 4px 0; padding-left: 20px">
+                  <li v-for="(factor, i) in (analysisResult.risk_assessment?.factors || [])" :key="i">{{ factor }}</li>
+                </ul>
+              </div>
+            </a-descriptions-item>
+            <a-descriptions-item label="可疑点">
+              <a-list :dataSource="analysisResult.suspicious_points || []" size="small" :split="false">
+                <template #renderItem="{ item }">
+                  <a-list-item style="padding: 4px 0">
+                    <WarningOutlined style="color: #faad14; margin-right: 8px" />
+                    {{ item.point }}
+                    <a-tag :color="getSeverityColor(item.severity)" size="small" style="margin-left: 8px">
+                      {{ item.severity }}
+                    </a-tag>
+                  </a-list-item>
+                </template>
+              </a-list>
+            </a-descriptions-item>
+            <a-descriptions-item label="核查建议">
+              <ul style="margin: 0; padding-left: 20px">
+                <li v-for="(s, i) in (analysisResult.suggestions || [])" :key="i">{{ s }}</li>
+              </ul>
+            </a-descriptions-item>
+            <a-descriptions-item label="置信度">
+              <a-progress :percent="analysisResult.confidence || 0" :strokeColor="getProgressColor(analysisResult.confidence || 0)" />
+            </a-descriptions-item>
+          </a-descriptions>
+        </div>
+      </div>
     </a-modal>
     
     <!-- AI辅助分析弹窗 -->
@@ -145,26 +153,45 @@
         <p style="margin-top: 16px">AI正在分析人员信息...</p>
       </div>
       
-      <div v-else-if="aiResult">
+      <div v-else-if="analysisResult">
         <a-alert type="info" show-icon style="margin-bottom: 16px">
           <template #message>AI分析建议</template>
         </a-alert>
         
         <a-descriptions :column="1" bordered size="small">
-          <a-descriptions-item label="风险提示">
-            <a-list :dataSource="aiResult.riskAlerts" size="small">
+          <a-descriptions-item label="风险评估">
+            <a-tag :color="getRiskColor(analysisResult.risk_assessment?.level)">
+              {{ analysisResult.risk_assessment?.level }}风险
+            </a-tag>
+            <ul style="margin: 8px 0 0 0; padding-left: 20px">
+              <li v-for="(factor, i) in (analysisResult.risk_assessment?.factors || [])" :key="i">{{ factor }}</li>
+            </ul>
+          </a-descriptions-item>
+          <a-descriptions-item label="可疑点">
+            <a-list :dataSource="analysisResult.suspicious_points || []" size="small" :split="false">
               <template #renderItem="{ item }">
-                <a-list-item><WarningOutlined style="color: #faad14; margin-right: 8px" />{{ item }}</a-list-item>
+                <a-list-item style="padding: 4px 0">
+                  <WarningOutlined style="color: #faad14; margin-right: 8px" />{{ item.point }}
+                  <a-tag :color="getSeverityColor(item.severity)" size="small" style="margin-left: 8px">{{ item.severity }}</a-tag>
+                </a-list-item>
               </template>
             </a-list>
           </a-descriptions-item>
-          <a-descriptions-item label="建议核查重点">{{ aiResult.suggestFocus }}</a-descriptions-item>
-          <a-descriptions-item label="推荐核查方式">{{ aiResult.suggestMethods }}</a-descriptions-item>
-          <a-descriptions-item label="关联风险信息">{{ aiResult.relatedRisk }}</a-descriptions-item>
+          <a-descriptions-item label="核查建议">
+            <ul style="margin: 0; padding-left: 20px">
+              <li v-for="(s, i) in (analysisResult.suggestions || [])" :key="i">{{ s }}</li>
+            </ul>
+          </a-descriptions-item>
+          <a-descriptions-item label="置信度">
+            <a-progress :percent="analysisResult.confidence || 0" />
+          </a-descriptions-item>
         </a-descriptions>
         
         <div style="margin-top: 16px; text-align: right">
-          <a-button type="primary" @click="applyAiSuggestion">应用建议</a-button>
+          <a-button type="primary" :loading="aiLoading" @click="handleReanalyze">
+            <template #icon><ReloadOutlined /></template>
+            重新分析
+          </a-button>
         </div>
       </div>
     </a-modal>
@@ -172,32 +199,49 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { message } from 'ant-design-vue'
-import { RobotOutlined, WarningOutlined } from '@ant-design/icons-vue'
-import { getDDList, getDDDetail, submitDDInvestigate, aiAssistDD } from '@/api/aml'
+import { RobotOutlined, WarningOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import { getDDList, getDDDetail, aiAssistDD } from '@/api/aml'
 
 const loading = ref(false)
 const detailVisible = ref(false)
-const investigateVisible = ref(false)
 const aiAssistVisible = ref(false)
 const aiLoading = ref(false)
 const currentRecord = ref(null)
 const ddList = ref([])
-const aiResult = ref(null)
+const analysisResult = ref(null)
 
-const searchForm = reactive({
-  customerName: '',
-  status: undefined,
-  riskLevel: undefined
+// 解析人员信息JSON
+const customerInfoObj = computed(() => {
+  if (!currentRecord.value?.customerInfo) return null
+  try {
+    return JSON.parse(currentRecord.value.customerInfo)
+  } catch {
+    return null
+  }
 })
 
-const investigateForm = reactive({
-  methods: [],
-  content: '',
-  conclusion: 'PASS',
-  riskLevel: 'MEDIUM',
-  remark: ''
+// 解析风险评估数据（优先使用AI分析结果中的风险数据）
+const riskAssessmentObj = computed(() => {
+  // 优先使用AI分析结果中的风险数据
+  if (analysisResult.value?.risk_assessment) {
+    return analysisResult.value.risk_assessment
+  }
+  // 其次使用数据库中的risk_assessment字段
+  if (currentRecord.value?.riskAssessment) {
+    try {
+      return JSON.parse(currentRecord.value.riskAssessment)
+    } catch {
+      return null
+    }
+  }
+  return null
+})
+
+const searchForm = reactive({
+  ddType: undefined,
+  status: undefined
 })
 
 const pagination = reactive({
@@ -208,24 +252,24 @@ const pagination = reactive({
 })
 
 const columns = [
-  { title: '人员姓名', dataIndex: 'customerName', key: 'customerName' },
-  { title: '人员类型', dataIndex: 'customerType', key: 'customerType' },
-  { title: '身份证号', dataIndex: 'idNumber', key: 'idNumber' },
-  { title: '风险等级', dataIndex: 'riskLevel', key: 'riskLevel' },
-  { title: '核查状态', dataIndex: 'status', key: 'status' },
-  { title: '核查事由', dataIndex: 'triggerReason', key: 'triggerReason' },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime' },
-  { title: '操作', key: 'action', width: 200 }
+  { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
+  { title: '人员ID', dataIndex: 'customerId', key: 'customerId', width: 80 },
+  { title: '核查类型', dataIndex: 'ddType', key: 'ddType', width: 100 },
+  { title: '核查事由', dataIndex: 'ddReason', key: 'ddReason', ellipsis: true },
+  { title: '业务性质', dataIndex: 'businessNature', key: 'businessNature', width: 120 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
+  { title: '创建时间', dataIndex: 'createdTime', key: 'createdTime', width: 150 },
+  { title: '操作', key: 'action', width: 160 }
 ]
 
-function getRiskColor(level) {
-  const colors = { HIGH: 'red', MEDIUM: 'orange', LOW: 'green' }
-  return colors[level] || 'default'
+function getDdTypeColor(type) {
+  const colors = { ENHANCED: 'red', STANDARD: 'orange', SIMPLIFIED: 'green' }
+  return colors[type] || 'default'
 }
 
-function getRiskText(level) {
-  const texts = { HIGH: '高风险', MEDIUM: '中风险', LOW: '低风险' }
-  return texts[level] || '未知'
+function getDdTypeText(type) {
+  const texts = { ENHANCED: '加强核查', STANDARD: '标准核查', SIMPLIFIED: '简化核查' }
+  return texts[type] || type
 }
 
 function getStatusColor(status) {
@@ -248,12 +292,41 @@ function getStatusText(status) {
   return texts[status] || '未知'
 }
 
+function getRiskColor(level) {
+  const colors = { '极高': 'magenta', '高': 'red', '中': 'orange', '低': 'green' }
+  return colors[level] || 'default'
+}
+
+function getSeverityColor(severity) {
+  const colors = { '高': 'red', '中': 'orange', '低': 'green' }
+  return colors[severity] || 'default'
+}
+
+function getProgressColor(score) {
+  if (score >= 80) return '#ff4d4f'
+  if (score >= 60) return '#faad14'
+  return '#52c41a'
+}
+
+function formatJson(str) {
+  if (!str) return ''
+  try {
+    return JSON.stringify(JSON.parse(str), null, 2)
+  } catch {
+    return str
+  }
+}
+
 async function fetchDDList() {
   loading.value = true
   try {
-    const res = await getDDList(searchForm)
-    ddList.value = res.records
-    pagination.total = res.total
+    const res = await getDDList({
+      current: pagination.current,
+      size: pagination.pageSize,
+      ...searchForm
+    })
+    ddList.value = res.records || []
+    pagination.total = res.total || 0
   } catch (error) {
     console.error(error)
   } finally {
@@ -261,52 +334,79 @@ async function fetchDDList() {
   }
 }
 
+function handleTableChange(page) {
+  pagination.current = page.current
+  pagination.pageSize = page.pageSize
+  fetchDDList()
+}
+
 function handleSearch() {
+  pagination.current = 1
   fetchDDList()
 }
 
 async function handleView(record) {
   try {
-    const res = await getDDDetail(record.id)
-    currentRecord.value = res
+    currentRecord.value = await getDDDetail(record.id)
+    
+    // 解析已有的分析结果
+    if (currentRecord.value.aiAnalysis) {
+      try {
+        let jsonStr = currentRecord.value.aiAnalysis.trim()
+        if (jsonStr.includes('```json')) {
+          jsonStr = jsonStr.substring(jsonStr.indexOf('```json') + 7, jsonStr.lastIndexOf('```'))
+        } else if (jsonStr.includes('```')) {
+          jsonStr = jsonStr.substring(jsonStr.indexOf('```') + 3, jsonStr.lastIndexOf('```'))
+        }
+        analysisResult.value = JSON.parse(jsonStr.trim())
+      } catch (e) {
+        console.error('解析分析结果失败', e)
+        analysisResult.value = null
+      }
+    } else {
+      analysisResult.value = null
+    }
+    
     detailVisible.value = true
   } catch (error) {
     message.error('获取详情失败')
   }
 }
 
-function handleInvestigate(record) {
-  currentRecord.value = record
-  Object.assign(investigateForm, {
-    methods: [],
-    content: '',
-    conclusion: 'PASS',
-    riskLevel: record.riskLevel || 'MEDIUM',
-    remark: ''
-  })
-  investigateVisible.value = true
-}
-
-async function handleSubmitInvestigate() {
+async function handleAiAssist(record) {
+  aiAssistVisible.value = true
+  analysisResult.value = null
+  currentRecord.value = null
+  aiLoading.value = true
+  
   try {
-    await submitDDInvestigate(currentRecord.value.id, investigateForm)
-    message.success('提交成功')
-    investigateVisible.value = false
-    fetchDDList()
+    const res = await aiAssistDD(record.id, false)
+    analysisResult.value = res.analysisResult
+    currentRecord.value = res
+    
+    if (res.isHistory) {
+      message.info('已加载历史分析记录，可点击"重新分析"生成新结果')
+    } else {
+      message.success('AI分析完成')
+    }
   } catch (error) {
-    message.error('提交失败')
+    message.error('AI分析失败')
+    aiAssistVisible.value = false
+  } finally {
+    aiLoading.value = false
   }
 }
 
-async function handleAiAssist(record) {
-  currentRecord.value = record
-  aiAssistVisible.value = true
+async function doAiAnalyze(id, force = false) {
   aiLoading.value = true
-  aiResult.value = null
-  
   try {
-    const res = await aiAssistDD(record.id)
-    aiResult.value = res
+    const res = await aiAssistDD(id, force)
+    analysisResult.value = res.analysisResult
+    currentRecord.value = res
+    
+    if (force) {
+      message.success('AI分析完成')
+    }
   } catch (error) {
     message.error('AI分析失败')
   } finally {
@@ -314,13 +414,9 @@ async function handleAiAssist(record) {
   }
 }
 
-function applyAiSuggestion() {
-  if (aiResult.value) {
-    investigateForm.content = aiResult.value.suggestFocus
-    investigateForm.methods = aiResult.value.recommendedMethods || []
-  }
-  aiAssistVisible.value = false
-  investigateVisible.value = true
+async function handleReanalyze() {
+  if (!currentRecord.value) return
+  await doAiAnalyze(currentRecord.value.id, true)
 }
 
 onMounted(() => {
