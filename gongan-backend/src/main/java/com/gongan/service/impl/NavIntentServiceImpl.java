@@ -24,6 +24,7 @@ import java.util.*;
 
 /**
  * 智能导航服务实现
+ * 识别策略：① 关键词规则匹配（快速兜底）→ ② LLM意图推理（复杂/歧义场景）
  */
 @Slf4j
 @Service
@@ -34,142 +35,208 @@ public class NavIntentServiceImpl extends ServiceImpl<NavIntentMapper, NavIntent
     private final NavHistoryMapper navHistoryMapper;
     private final FraudAnalysisService fraudAnalysisService;
 
+    /** 规则匹配时跳过的通用动词词组（非主题词，避免误匹配） */
+    private static final Set<String> ACTION_STOPWORDS = Set.of(
+            "查一下", "看看", "打开", "查看", "进入", "我要", "我想",
+            "需要", "想要", "帮我", "帮忙", "可以", "怎么", "如何"
+    );
+
     @Override
     public Map<String, Object> recognizeIntent(String query, Long userId) {
-        // 获取所有启用的意图
         List<NavIntent> intents = getActiveIntents();
+        Map<String, Object> result = new HashMap<>();
 
-        // 构建意图列表描述
-        StringBuilder intentDesc = new StringBuilder();
-        intentDesc.append("以下是系统中可用的导航目标：\n\n");
-
-        Map<String, NavIntent> intentMap = new HashMap<>();
-        for (int i = 0; i < intents.size(); i++) {
-            NavIntent intent = intents.get(i);
-            String key = "intent_" + i;
-            intentMap.put(key, intent);
-
-            intentDesc.append(String.format("%d. %s (%s)\n", i + 1, intent.getIntentName(), intent.getDescription()));
-            intentDesc.append(String.format("   关键词：%s\n", intent.getKeywords()));
-            intentDesc.append(String.format("   目标路径：%s\n\n", intent.getTargetPath()));
+        // ── Step 1：关键词规则匹配（快速、稳定，优先命中） ──────────────────
+        NavIntent ruleMatched = matchByKeyword(query, intents);
+        if (ruleMatched != null) {
+            buildSuccessResult(result, ruleMatched, null, intents);
+            saveNavHistory(userId, query, ruleMatched.getIntentCode(),
+                    (String) result.get("targetPath"), true, null);
+            log.info("规则命中[{}] query={}", ruleMatched.getIntentCode(), query);
+            return result;
         }
 
-        // 构建AI提示词（支持复杂意图、口语化与实体解析）
-        String systemPrompt = """
-                你是一个智慧公安系统的智能导航助手。用户可能用口语、简称、或一句话里包含多件事，你需要识别其最想去的那个页面（主意图），并解析出提及的具体实体（如人员姓名）。
-                
-                规则：
-                1. 只返回一个主意图：用户说“先看重点人员再分析”或“我想看看张三的流水”时，选最明确的一个（如“看张三的流水”选资金流水+实体张三）。
-                2. 容忍口语与同义：如“查一下”“看看”“打开”“进…页”“有没有”都表示要去某页；“流水”“交易”“转账记录”指向资金流水；“角色”“权限”“赋权”指向角色管理。
-                3. 从句子中抽取具体人员姓名或编号，填到 entity_keyword；若未提及具体人则 entity_type 和 entity_keyword 为 null。
-                
-                请严格以JSON格式返回（不要多余文字）：
-                {
-                    "intent_key": "匹配的意图key（如intent_0）或null",
-                    "confidence": 置信度(0-100),
-                    "reason": "简短判断理由",
-                    "entity_type": "若用户提到具体人员则填 person，否则不填或null",
-                    "entity_keyword": "用户提及的人员姓名或简称，如张三、李四，未提及则为null"
-                }
-                
-                示例理解：“我想看看有没有张三的流水” -> 主意图为资金流水(intent_对应流水)，entity_type=person, entity_keyword=张三；“打开角色管理” -> 角色管理；“查一下高危人员” -> 重点人员。
-                """;
+        // ── Step 2：LLM意图推理（处理口语、实体名、复杂说法） ──────────────
+        String systemPrompt = buildSystemPrompt(intents);
 
-        String userPrompt = "用户输入：" + query + "\n\n可用意图：\n" + intentDesc;
-
-        // 调用LLM
-        String aiResponse = llmClient.chat(List.of(
-                Map.of("role", "user", "content", userPrompt)
-        ), systemPrompt);
-
-        // 解析结果
-        Map<String, Object> result = new HashMap<>();
         try {
-            String jsonStr = aiResponse;
-            if (aiResponse.contains("```json")) {
-                jsonStr = aiResponse.substring(aiResponse.indexOf("```json") + 7, aiResponse.lastIndexOf("```"));
-            } else if (aiResponse.contains("```")) {
-                jsonStr = aiResponse.substring(aiResponse.indexOf("```") + 3, aiResponse.lastIndexOf("```"));
-            }
+            String aiResponse = llmClient.chatJson(
+                    List.of(Map.of("role", "user", "content", "用户输入：" + query)),
+                    systemPrompt
+            );
 
-            JSONObject parsed = JSON.parseObject(jsonStr.trim());
-            String intentKey = parsed.getString("intent_key");
+            String jsonStr = extractJson(aiResponse);
+            JSONObject parsed = JSON.parseObject(jsonStr);
+            Integer n = parsed.getInteger("n");
+            String entityKw = parsed.getString("e");
+            if (entityKw != null) entityKw = entityKw.trim();
+            if (entityKw != null && entityKw.isEmpty()) entityKw = null;
 
-            if (intentKey != null && intentMap.containsKey(intentKey)) {
-                NavIntent matchedIntent = intentMap.get(intentKey);
-                String targetPath = matchedIntent.getTargetPath();
-                String entityType = parsed.getString("entity_type");
-                String entityKeyword = parsed.getString("entity_keyword");
-                if (entityKeyword != null) entityKeyword = entityKeyword.trim();
-                if (entityType != null && entityKeyword != null && !entityKeyword.isEmpty()
-                        && "person".equalsIgnoreCase(entityType)) {
-                    PageResult<FraudSuspiciousCustomer> page = fraudAnalysisService.pageCustomers(
-                            Map.of("current", 1, "size", 5, "customerName", entityKeyword));
-                    List<FraudSuspiciousCustomer> records = page.getRecords();
-                    if (records != null && !records.isEmpty()) {
-                        Long personId = records.get(0).getId();
-                        if ("/anti-fraud/analysis".equals(targetPath) && records.size() == 1) {
-                            targetPath = targetPath + "?customerId=" + personId;
-                        } else if ("/anti-fraud/transaction".equals(targetPath)) {
-                            targetPath = targetPath + "?customerId=" + personId;
-                        } else {
-                            String enc = URLEncoder.encode(entityKeyword, StandardCharsets.UTF_8);
-                            if (targetPath.contains("?")) targetPath = targetPath + "&customerName=" + enc;
-                            else targetPath = targetPath + "?customerName=" + enc;
-                        }
-                    } else {
-                        result.put("message", "未找到匹配人员「" + entityKeyword + "」，已打开对应列表页");
-                    }
-                }
-                result.put("matched", true);
-                result.put("success", true);
-                result.put("intentId", matchedIntent.getId());
-                result.put("intentName", matchedIntent.getIntentName());
-                result.put("targetName", matchedIntent.getIntentName());
-                result.put("targetPath", targetPath);
-                result.put("confidence", parsed.getBigDecimal("confidence"));
-                result.put("reason", parsed.getString("reason"));
-                // 推荐 2～3 个其它意图
-                List<Map<String, Object>> recommendations = new ArrayList<>();
-                for (NavIntent other : intents) {
-                    if (other.getId().equals(matchedIntent.getId())) continue;
-                    Map<String, Object> rec = new HashMap<>();
-                    rec.put("intentCode", other.getIntentCode());
-                    rec.put("targetPath", other.getTargetPath());
-                    rec.put("intentName", other.getIntentName());
-                    rec.put("description", other.getDescription());
-                    recommendations.add(rec);
-                    if (recommendations.size() >= 3) break;
-                }
-                result.put("recommendations", recommendations);
+            if (n != null && n >= 0 && n < intents.size()) {
+                NavIntent matched = intents.get(n);
+                buildSuccessResult(result, matched, entityKw, intents);
+                result.put("confidence", parsed.getBigDecimal("c"));
+                saveNavHistory(userId, query, matched.getIntentCode(),
+                        (String) result.get("targetPath"), true, (String) result.get("message"));
+                log.info("LLM命中[{}] confidence={} query={}", matched.getIntentCode(), parsed.get("c"), query);
             } else {
                 result.put("matched", false);
                 result.put("success", false);
                 result.put("message", "无法识别您的意图，请尝试更具体的描述");
+                saveNavHistory(userId, query, null, null, false, (String) result.get("message"));
             }
         } catch (Exception e) {
-            log.error("解析AI响应失败", e);
+            log.error("LLM意图识别失败 query={}", query, e);
             result.put("matched", false);
             result.put("success", false);
             result.put("message", "意图识别失败，请稍后重试");
+            saveNavHistory(userId, query, null, null, false, (String) result.get("message"));
         }
-
-        // 导航历史落库
-        String intentCode = null;
-        String targetPath = (String) result.get("targetPath");
-        Boolean success = (Boolean) result.get("success");
-        String message = (String) result.get("message");
-        if (result.get("intentId") != null) {
-            NavIntent matched = intentMap.values().stream()
-                    .filter(i -> i.getId().equals(result.get("intentId")))
-                    .findFirst().orElse(null);
-            if (matched != null) intentCode = matched.getIntentCode();
-        }
-        saveNavHistory(userId, query, intentCode, targetPath, Boolean.TRUE.equals(success), message);
-
-        log.info("用户 {} 导航查询: {}, 结果: {}", userId, query, result);
 
         return result;
+    }
+
+    // ── 关键词规则匹配：平方加权，长词优先，排除通用动词 ──────────────────
+    private NavIntent matchByKeyword(String query, List<NavIntent> intents) {
+        String q = query.toLowerCase().replaceAll("\\s+", "");
+        NavIntent best = null;
+        int bestScore = 0;
+
+        for (NavIntent intent : intents) {
+            if (intent.getKeywords() == null) continue;
+            int score = 0;
+            for (String kw : intent.getKeywords().split("[,，]")) {
+                String k = kw.trim().toLowerCase();
+                // 跳过1字词、通用动词
+                if (k.length() < 2 || ACTION_STOPWORDS.contains(k)) continue;
+                if (q.contains(k)) {
+                    score += k.length() * k.length(); // 平方加权：4字词得16分，远高于2字词4分
+                }
+            }
+            if (score > bestScore) {
+                bestScore = score;
+                best = intent;
+            }
+        }
+        // 至少命中一个2字以上主题关键词（score >= 4）才采用规则匹配
+        return bestScore >= 4 ? best : null;
+    }
+
+    // ── 构建紧凑高效的LLM提示词（含few-shot示例） ────────────────────────
+    private String buildSystemPrompt(List<NavIntent> intents) {
+        StringBuilder intentList = new StringBuilder();
+        for (int i = 0; i < intents.size(); i++) {
+            NavIntent intent = intents.get(i);
+            intentList.append(i).append(". ")
+                    .append(intent.getIntentName())
+                    .append(" [").append(intent.getKeywords()).append("]\n");
+        }
+
+        // 动态生成few-shot（基于真实意图序号，防止序号变化时示例错乱）
+        String fewShot = buildFewShot(intents);
+
+        return "你是智慧公安系统的智能导航助手。\n"
+                + "任务：从下方编号列表选出最匹配用户输入的意图编号，只输出JSON，不要任何解释。\n\n"
+                + "意图列表（编号. 名称 [关键词]）：\n" + intentList
+                + "\n输出格式（仅一个JSON对象，不要其他内容）：\n"
+                + "{\"n\":编号整数或null,\"c\":置信度0-100,\"e\":用户提到的人名或null}\n\n"
+                + "规则：\n"
+                + "- n 是意图编号（从0开始），完全无法判断时为null\n"
+                + "- e 若用户明确提到某人姓名则填入，否则为null\n\n"
+                + fewShot;
+    }
+
+    private String buildFewShot(List<NavIntent> intents) {
+        StringBuilder sb = new StringBuilder("输入→输出示例：\n");
+        int suspicious = getIntentIndex(intents, "SUSPICIOUS_PERSON");
+        int analysis   = getIntentIndex(intents, "CASE_ANALYSIS");
+        int transaction = getIntentIndex(intents, "TRANSACTION_LIST");
+        int chat       = getIntentIndex(intents, "AI_CHAT");
+        int role       = getIntentIndex(intents, "ROLE_MANAGE");
+        int clue       = getIntentIndex(intents, "CLUE_MANAGE");
+
+        sb.append("\"查重点人员\" → {\"n\":").append(suspicious).append(",\"c\":98,\"e\":null}\n");
+        sb.append("\"查张三\" → {\"n\":").append(suspicious).append(",\"c\":85,\"e\":\"张三\"}\n");
+        sb.append("\"看李四的案情分析\" → {\"n\":").append(analysis).append(",\"c\":90,\"e\":\"李四\"}\n");
+        sb.append("\"张三的资金流水\" → {\"n\":").append(transaction).append(",\"c\":88,\"e\":\"张三\"}\n");
+        sb.append("\"打开智能问答\" → {\"n\":").append(chat).append(",\"c\":99,\"e\":null}\n");
+        sb.append("\"角色管理\" → {\"n\":").append(role).append(",\"c\":99,\"e\":null}\n");
+        sb.append("\"查线索\" → {\"n\":").append(clue).append(",\"c\":95,\"e\":null}\n");
+        sb.append("\"乱七八糟的输入\" → {\"n\":null,\"c\":0,\"e\":null}\n");
+        return sb.toString();
+    }
+
+    // ── 构建成功返回结果（含实体路径增强） ────────────────────────────────
+    private void buildSuccessResult(Map<String, Object> result, NavIntent matched,
+            String entityKeyword, List<NavIntent> intents) {
+        String targetPath = matched.getTargetPath();
+        if (entityKeyword != null && !entityKeyword.isBlank()) {
+            targetPath = enhancePathWithEntity(targetPath, entityKeyword, result);
+        }
+        result.put("matched", true);
+        result.put("success", true);
+        result.put("intentId", matched.getId());
+        result.put("intentName", matched.getIntentName());
+        result.put("targetName", matched.getIntentName());
+        result.put("targetPath", targetPath);
+
+        // 推荐其它意图（最多3个）
+        List<Map<String, Object>> recs = new ArrayList<>();
+        for (NavIntent other : intents) {
+            if (other.getId().equals(matched.getId())) continue;
+            Map<String, Object> rec = new HashMap<>();
+            rec.put("intentCode", other.getIntentCode());
+            rec.put("targetPath", other.getTargetPath());
+            rec.put("intentName", other.getIntentName());
+            rec.put("description", other.getDescription());
+            recs.add(rec);
+            if (recs.size() >= 3) break;
+        }
+        result.put("recommendations", recs);
+    }
+
+    // ── 实体增强：按姓名查人员，拼接带参路径 ─────────────────────────────
+    private String enhancePathWithEntity(String targetPath, String entityKeyword,
+            Map<String, Object> result) {
+        try {
+            PageResult<FraudSuspiciousCustomer> page = fraudAnalysisService.pageCustomers(
+                    Map.of("current", 1, "size", 5, "customerName", entityKeyword));
+            List<FraudSuspiciousCustomer> records = page.getRecords();
+            if (records != null && !records.isEmpty()) {
+                Long personId = records.get(0).getId();
+                if ("/anti-fraud/analysis".equals(targetPath) && records.size() == 1) {
+                    return targetPath + "?customerId=" + personId;
+                } else if ("/anti-fraud/transaction".equals(targetPath)) {
+                    return targetPath + "?customerId=" + personId;
+                } else {
+                    String enc = URLEncoder.encode(entityKeyword, StandardCharsets.UTF_8);
+                    return targetPath + (targetPath.contains("?") ? "&" : "?") + "customerName=" + enc;
+                }
+            } else {
+                result.put("message", "未找到人员「" + entityKeyword + "」，已打开对应列表页");
+            }
+        } catch (Exception e) {
+            log.warn("人员查询失败 entityKeyword={}", entityKeyword, e);
+        }
+        return targetPath;
+    }
+
+    // ── 获取意图在列表中的序号 ──────────────────────────────────────────
+    private int getIntentIndex(List<NavIntent> intents, String intentCode) {
+        for (int i = 0; i < intents.size(); i++) {
+            if (intentCode.equals(intents.get(i).getIntentCode())) return i;
+        }
+        return 0;
+    }
+
+    // ── 从LLM响应中提取JSON字符串（兼容markdown代码块、思考前缀等） ──────
+    private String extractJson(String text) {
+        if (text == null || text.isBlank()) return "{}";
+        text = text.trim();
+        int start = text.indexOf('{');
+        int end = text.lastIndexOf('}');
+        if (start >= 0 && end > start) return text.substring(start, end + 1);
+        return text;
     }
 
     @Override
@@ -182,7 +249,8 @@ public class NavIntentServiceImpl extends ServiceImpl<NavIntentMapper, NavIntent
     }
 
     @Override
-    public void saveNavHistory(Long userId, String inputText, String intentCode, String targetPath, boolean success, String message) {
+    public void saveNavHistory(Long userId, String inputText, String intentCode, String targetPath,
+            boolean success, String message) {
         NavHistory h = new NavHistory();
         h.setUserId(userId);
         h.setInputText(inputText != null && inputText.length() > 500 ? inputText.substring(0, 500) : inputText);
