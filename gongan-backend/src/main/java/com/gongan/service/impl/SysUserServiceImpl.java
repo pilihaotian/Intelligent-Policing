@@ -120,4 +120,17 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         user.setPassword(passwordEncoder.encode(newPassword));
         updateById(user);
     }
+
+    @Override
+    public void addUser(SysUser user) {
+        if (user == null) {
+            return;
+        }
+        if (!StringUtils.hasText(user.getPassword())) {
+            user.setPassword(passwordEncoder.encode("123456"));
+        } else {
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+        }
+        save(user);
+    }
 }

@@ -61,4 +61,9 @@ public interface SysUserService extends IService<SysUser> {
      * 重置密码
      */
     void resetPassword(Long userId, String newPassword);
+
+    /**
+     * 新增用户（未传密码时使用默认密码并加密）
+     */
+    void addUser(SysUser user);
 }

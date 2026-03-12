@@ -64,7 +64,7 @@ public class SysUserController {
     @Operation(summary = "新增用户")
     @PostMapping
     public ApiResponse<Void> add(@RequestBody SysUser user) {
-        userService.save(user);
+        userService.addUser(user);
         return ApiResponse.success();
     }
 
