@@ -4,11 +4,16 @@
       <div class="nav-container">
         <h2><CompassOutlined /> 智能导航</h2>
         <p class="desc">请描述您想要进行的操作，系统将智能识别您的意图并导航到对应页面</p>
+
+        <div v-if="examplePrompts.length" class="example-section">
+          <span class="example-label">试试这样说：</span>
+          <a-tag v-for="(p, i) in examplePrompts" :key="i" class="example-tag" @click="userInput = p">{{ p }}</a-tag>
+        </div>
         
         <div class="input-section">
           <a-textarea
             v-model:value="userInput"
-            placeholder="例如：我想查看..."
+            :placeholder="placeholderText"
             :auto-size="{ minRows: 3, maxRows: 6 }"
             @pressEnter="handleNavigate"
           />
@@ -22,6 +27,19 @@
             <template #icon><SearchOutlined /></template>
             智能导航
           </a-button>
+        </div>
+
+        <!-- 常用入口 -->
+        <div v-if="shortcutIntents.length" class="shortcut-section">
+          <a-divider>常用入口</a-divider>
+          <a-row :gutter="12">
+            <a-col :span="6" v-for="item in shortcutIntents" :key="item.targetPath">
+              <a-card hoverable size="small" class="shortcut-card" @click="goToPage(item.targetPath)">
+                <component :is="getIconForPath(item.targetPath)" class="shortcut-icon" />
+                <div class="shortcut-title">{{ item.intentName }}</div>
+              </a-card>
+            </a-col>
+          </a-row>
         </div>
         
         <!-- 推荐功能 -->
@@ -56,7 +74,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { 
@@ -68,23 +86,28 @@ import {
   SecurityScanOutlined,
   EyeOutlined
 } from '@ant-design/icons-vue'
-import { navigate } from '@/api/nav'
+import { navigate, getIntentHistory, listIntents } from '@/api/nav'
 
 const router = useRouter()
 const loading = ref(false)
 const userInput = ref('')
 const recommendList = ref([])
 const navHistory = ref([])
+const examplePrompts = ref([])
+const shortcutIntents = ref([])
+const placeholderText = ref('例如：查重点人员、打开案件分析、查张三、填文书、智能问答…')
 
-const intentMap = {
-  'suspicious_customer': { path: '/anti-fraud/customer', title: '重点人员管理', icon: UserOutlined, desc: '查看和管理重点人员列表' },
-  'fraud_analysis': { path: '/anti-fraud/analysis', title: '案件分析', icon: SecurityScanOutlined, desc: '进行案件深度分析研判' },
-  'legal_document': { path: '/ops-risk/document', title: '案件信息填报', icon: FileTextOutlined, desc: 'AI智能提取文书信息并填报' },
-  'ai_chat': { path: '/ai-assistant/chat', title: '智能问答', icon: RobotOutlined, desc: '与AI助手进行对话' },
-  'knowledge_base': { path: '/ai-assistant/kb', title: '知识库管理', icon: RobotOutlined, desc: '管理业务知识库' },
-  'aml_due_diligence': { path: '/aml/due-diligence', title: '人员核查', icon: EyeOutlined, desc: '人员背景核查管理' },
-  'aml_suspicious': { path: '/aml/suspicious', title: '线索管理', icon: EyeOutlined, desc: '线索情报管理' },
-  'user_manage': { path: '/system/user', title: '用户管理', icon: UserOutlined, desc: '管理系统用户' }
+// 根据路径返回推荐卡片图标（用于后端返回的 recommendations）
+function getIconForPath(path) {
+  if (!path) return SecurityScanOutlined
+  if (path.includes('customer')) return UserOutlined
+  if (path.includes('analysis')) return SecurityScanOutlined
+  if (path.includes('document')) return FileTextOutlined
+  if (path.includes('chat')) return RobotOutlined
+  if (path.includes('kb')) return RobotOutlined
+  if (path.includes('due-diligence') || path.includes('suspicious')) return EyeOutlined
+  if (path.includes('user')) return UserOutlined
+  return SecurityScanOutlined
 }
 
 async function handleNavigate() {
@@ -97,34 +120,35 @@ async function handleNavigate() {
   
   try {
     const res = await navigate(userInput.value)
-    
+    const success = res.success ?? res.matched
+    const targetName = res.targetName ?? res.intentName
+
     // 添加到历史记录
     navHistory.value.unshift({
       input: userInput.value,
-      success: res.success,
-      target: res.targetName,
+      success,
+      target: targetName,
       path: res.targetPath,
       message: res.message,
       time: new Date().toLocaleString()
     })
-    
+
     // 保留最近10条记录
     if (navHistory.value.length > 10) {
       navHistory.value = navHistory.value.slice(0, 10)
     }
-    
-    if (res.success) {
-      // 更新推荐列表
-      recommendList.value = (res.recommendations || []).map(intent => {
-        const item = intentMap[intent]
-        if (item) {
-          return { ...item, path: item.path }
-        }
-        return null
-      }).filter(Boolean)
+
+    if (success) {
+      // 更新推荐列表（后端返回 { intentCode, targetPath, intentName, description }）
+      recommendList.value = (res.recommendations || []).map(rec => ({
+        path: rec.targetPath,
+        title: rec.intentName,
+        desc: rec.description || '',
+        icon: getIconForPath(rec.targetPath)
+      }))
       
       // 导航到目标页面
-      message.success(`正在导航至: ${res.targetName}`)
+      message.success(`正在导航至: ${targetName}`)
       setTimeout(() => {
         router.push(res.targetPath)
       }, 800)
@@ -141,6 +165,36 @@ async function handleNavigate() {
 function goToPage(path) {
   router.push(path)
 }
+
+onMounted(async () => {
+  try {
+    const list = await getIntentHistory(10)
+    navHistory.value = (list || []).map(item => ({
+      input: item.inputText,
+      success: item.success === 1,
+      target: item.targetPath || item.intentCode || '',
+      path: item.targetPath,
+      message: item.message,
+      time: item.createdTime ? new Date(item.createdTime).toLocaleString() : ''
+    }))
+  } catch (_) {
+    // 保持本地内存历史或空
+  }
+  try {
+    const intents = await listIntents()
+    const prompts = []
+    ;(intents || []).forEach(item => {
+      if (item.examplePrompts && typeof item.examplePrompts === 'string') {
+        item.examplePrompts.split(/[,，]/).forEach(p => {
+          const t = p.trim()
+          if (t && !prompts.includes(t)) prompts.push(t)
+        })
+      }
+    })
+    if (prompts.length) examplePrompts.value = prompts.slice(0, 12)
+    shortcutIntents.value = (intents || []).slice(0, 8)
+  } catch (_) {}
+})
 </script>
 
 <style lang="less" scoped>
@@ -158,7 +212,37 @@ function goToPage(path) {
     .desc {
       text-align: center;
       color: #999;
-      margin-bottom: 32px;
+      margin-bottom: 16px;
+    }
+
+    .example-section {
+      text-align: center;
+      margin-bottom: 24px;
+      .example-label {
+        color: #666;
+        margin-right: 8px;
+        font-size: 13px;
+      }
+      .example-tag {
+        cursor: pointer;
+        margin-bottom: 6px;
+      }
+    }
+
+    .shortcut-section {
+      margin-top: 24px;
+      .shortcut-card {
+        text-align: center;
+        cursor: pointer;
+        .shortcut-icon {
+          font-size: 24px;
+          color: #1890ff;
+        }
+        .shortcut-title {
+          margin-top: 8px;
+          font-size: 13px;
+        }
+      }
     }
     
     .input-section {

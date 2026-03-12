@@ -328,6 +328,7 @@ CREATE TABLE nav_intent (
     target_path VARCHAR(255),
     target_name VARCHAR(100),
     description VARCHAR(500),
+    example_prompts TEXT,
     priority INT DEFAULT 0,
     status SMALLINT DEFAULT 1,
     created_by VARCHAR(50),
