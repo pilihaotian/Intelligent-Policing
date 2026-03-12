@@ -76,8 +76,10 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { getSuspiciousCustomers } from '@/api/fraud'
 
+const route = useRoute()
 const loading = ref(false)
 const detailVisible = ref(false)
 const currentCustomer = ref(null)
@@ -151,7 +153,14 @@ function handleView(record) {
 }
 
 onMounted(() => {
-  fetchCustomerList()
+  const q = route.query
+  const name = q.customerName || q.keyword
+  if (name) {
+    searchForm.customerName = name
+    handleSearch()
+  } else {
+    fetchCustomerList()
+  }
 })
 </script>
 

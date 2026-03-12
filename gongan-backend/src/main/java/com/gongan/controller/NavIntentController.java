@@ -1,6 +1,7 @@
 package com.gongan.controller;
 
 import com.gongan.dto.ApiResponse;
+import com.gongan.entity.NavHistory;
 import com.gongan.entity.NavIntent;
 import com.gongan.filter.UserPrincipal;
 import com.gongan.service.NavIntentService;
@@ -31,6 +32,15 @@ public class NavIntentController {
             @AuthenticationPrincipal UserPrincipal user) {
         Map<String, Object> result = navIntentService.recognizeIntent(query, user.getUserId());
         return ApiResponse.success(result);
+    }
+
+    @Operation(summary = "获取导航历史")
+    @GetMapping("/history")
+    public ApiResponse<List<NavHistory>> getHistory(
+            @RequestParam(defaultValue = "10") int limit,
+            @AuthenticationPrincipal UserPrincipal user) {
+        List<NavHistory> list = navIntentService.getNavHistory(user.getUserId(), limit);
+        return ApiResponse.success(list);
     }
 
     @Operation(summary = "获取所有意图列表")

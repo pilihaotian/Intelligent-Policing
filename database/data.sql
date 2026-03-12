@@ -72,16 +72,25 @@ INSERT INTO ai_knowledge_base (kb_name, kb_code, kb_type, description, doc_count
 ('业务知识库', 'KB_BIZ', 'BIZ', '公安业务知识与操作规范', 20, 1, 'admin'),
 ('文书模板知识库', 'KB_DOC', 'DOC', '各类法律文书模板与规范', 25, 1, 'admin');
 
--- INSERT 导航意图数据
-INSERT INTO nav_intent (intent_code, intent_name, keywords, target_path, target_name, description, priority, status, created_by) VALUES
-('SUSPICIOUS_PERSON', '查看重点人员', '重点人员,嫌疑人,关注对象', '/anti-fraud/customer', '重点人员管理', '查看和管理重点人员列表', 1, 1, 'system'),
-('CASE_ANALYSIS', '案件分析', '案件分析,研判,侦查分析', '/anti-fraud/analysis', '案件分析', '进行案件分析研判', 2, 1, 'system'),
-('LEGAL_DOCUMENT', '法律文书', '法律文书,判决书,笔录', '/ops-risk/document', '案件信息填报', '上传和管理法律文书', 3, 1, 'system'),
-('AI_CHAT', '智能问答', '问答,聊天,咨询,提问', '/ai-assistant/chat', '智能问答', '与AI助手进行对话', 4, 1, 'system'),
-('PERSON_CHECK', '人员核查', '核查,背景调查,人员调查', '/aml/due-diligence', '人员核查', '人员背景核查管理', 5, 1, 'system'),
-('CLUE_MANAGE', '线索管理', '线索,情报,举报', '/aml/suspicious', '线索管理', '线索情报管理', 6, 1, 'system'),
-('USER_MANAGE', '用户管理', '用户,账号,人员管理', '/system/user', '用户管理', '管理系统用户', 7, 1, 'system'),
-('KB_MANAGE', '知识库管理', '知识库,文档管理', '/ai-assistant/kb', '知识库管理', '管理业务知识库', 8, 1, 'system');
+-- INSERT 导航意图数据（含示例话术与公安化关键词，支持复杂意图与口语）
+INSERT INTO nav_intent (intent_code, intent_name, keywords, target_path, target_name, description, example_prompts, priority, status, created_by) VALUES
+('SUSPICIOUS_PERSON', '查看重点人员', '重点人员,嫌疑人,关注对象,在逃,高危人员,管控对象,黑名单,关注名单,查一下,看看,打开,进', '/anti-fraud/customer', '重点人员管理', '查看和管理重点人员列表；查某人、高危人员、在逃人员', '查重点人员,查一下张三,打开重点人员列表,看嫌疑人名单,有没有高危人员', 1, 1, 'system'),
+('CASE_ANALYSIS', '案件分析', '案件分析,研判,侦查分析,案情,涉案分析,线索研判,做分析,案情分析,人员分析', '/anti-fraud/analysis', '案件分析', '进行案件分析研判；对某人员做案情或涉案分析', '打开案件分析,看李四的案情分析,做研判分析,分析一下张三', 2, 1, 'system'),
+('LEGAL_DOCUMENT', '法律文书', '法律文书,判决书,笔录,文书填报,案件信息,填文书,上传文书,文书', '/ops-risk/document', '案件信息填报', '上传和管理法律文书；案件信息填报', '填文书,案件信息填报,上传判决书', 3, 1, 'system'),
+('AI_CHAT', '智能问答', '问答,聊天,咨询,提问,助手,AI,想问,问一下', '/ai-assistant/chat', '智能问答', '与AI助手进行对话咨询', '智能问答,我要咨询,打开助手', 4, 1, 'system'),
+('PERSON_CHECK', '人员核查', '核查,背景调查,人员调查,尽职调查,核查一下', '/aml/due-diligence', '人员核查', '人员背景核查管理', '人员核查,做背景调查', 5, 1, 'system'),
+('CLUE_MANAGE', '线索管理', '线索,情报,举报,线索管理,线索上报,举报线索', '/aml/suspicious', '线索管理', '线索情报管理；举报、线索上报', '看线索,线索管理,举报线索', 6, 1, 'system'),
+('USER_MANAGE', '用户管理', '用户,账号,人员管理,用户列表,账号管理', '/system/user', '用户管理', '管理系统用户与账号', '用户管理,账号管理', 7, 1, 'system'),
+('KB_MANAGE', '知识库管理', '知识库,文档管理,知识库管理', '/ai-assistant/kb', '知识库管理', '管理业务知识库与文档', '知识库,文档管理', 8, 1, 'system'),
+('ROLE_MANAGE', '角色管理', '角色,权限,角色管理,权限配置,赋权,角色配置', '/system/role', '角色管理', '管理系统角色与权限配置', '角色管理,权限配置', 9, 1, 'system'),
+('ORG_MANAGE', '机构管理', '机构,部门,组织,机构管理,部门管理', '/system/org', '机构管理', '管理机构与部门组织', '机构管理,部门管理', 10, 1, 'system'),
+('TRANSACTION_LIST', '资金流水', '资金流水,交易流水,转账记录,流水,交易,资金往来,查流水', '/anti-fraud/transaction', '资金流水', '查看重点人员相关资金与交易流水', '资金流水,查一下张三的流水,交易记录', 11, 1, 'system');
+
+-- 若数据库中已有上述 8 条意图，可单独执行以下 3 条以追加新意图（需表含 example_prompts 列则保留该列，否则去掉 example_prompts 列及对应值）：
+-- INSERT INTO nav_intent (intent_code, intent_name, keywords, target_path, target_name, description, priority, status, created_by) VALUES
+-- ('ROLE_MANAGE', '角色管理', '角色,权限,角色管理,权限配置,赋权', '/system/role', '角色管理', '管理系统角色与权限配置', 9, 1, 'system'),
+-- ('ORG_MANAGE', '机构管理', '机构,部门,组织,机构管理,部门管理', '/system/org', '机构管理', '管理机构与部门组织', 10, 1, 'system'),
+-- ('TRANSACTION_LIST', '资金流水', '资金流水,交易流水,转账记录,流水,交易,查流水', '/anti-fraud/transaction', '资金流水', '查看重点人员相关资金与交易流水', 11, 1, 'system');
 
 -- INSERT 重点人员数据（明确指定ID确保关联正确）
 INSERT INTO fraud_suspicious_customer (id, customer_no, customer_name, id_type, id_no, gender, birth_date, phone, email, address, customer_type, risk_level, risk_score, blacklist_flag, watchlist_flag, suspicious_type, first_suspicious_time, last_suspicious_time, suspicious_count, status, created_by) VALUES
