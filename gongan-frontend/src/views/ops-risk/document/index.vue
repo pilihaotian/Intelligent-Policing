@@ -200,6 +200,23 @@
         </a-col>
       </a-row>
     </a-card>
+    
+    <!-- 处理中遮罩弹窗 -->
+    <a-modal
+      v-model:open="processing"
+      :closable="false"
+      :footer="null"
+      :maskClosable="false"
+      :keyboard="false"
+      width="320px"
+      centered
+    >
+      <div style="text-align: center; padding: 35px 0">
+        <a-spin size="large" />
+        <p style="margin-top: 24px; font-size: 16px; color: #333; font-weight: 500">正在处理，请稍后...</p>
+        <p style="margin-top: 8px; font-size: 14px; color: #999">AI正在智能提取文书信息</p>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -215,6 +232,7 @@ const userStore = useUserStore()
 const listLoading = ref(false)
 const extracting = ref(false)
 const saving = ref(false)
+const processing = ref(false)
 const documentList = ref([])
 const currentDoc = ref(null)
 
@@ -282,18 +300,45 @@ async function fetchDocumentList() {
 
 async function handleUploadChange(info) {
   const { status, response } = info.file
+  
+  // 上传开始时显示遮罩
+  if (status === 'uploading') {
+    processing.value = true
+    return
+  }
+  
   if (status === 'done') {
     if (response?.code === 200) {
-      message.success('上传成功')
-      await fetchDocumentList()
-      // 从列表中获取最新数据（按时间倒序，第一个就是最新的）
-      if (documentList.value.length > 0) {
-        handleSelectDoc(documentList.value[0])
+      try {
+        await fetchDocumentList()
+        // 从列表中获取最新数据（按时间倒序，第一个就是最新的）
+        if (documentList.value.length > 0) {
+          const latestDoc = documentList.value[0]
+          
+          // 如果需要提取，调用提取接口
+          if (!latestDoc.extractContent) {
+            try {
+              const extractRes = await extractDocument(latestDoc.id)
+              latestDoc.extractContent = JSON.stringify(extractRes.extractedData)
+              latestDoc.aiConfidence = extractRes.confidence
+            } catch (e) {
+              console.error('提取失败:', e)
+              message.error('AI提取失败')
+            }
+          }
+          
+          await handleSelectDoc(latestDoc)
+          message.success('文书上传并提取成功')
+        }
+      } finally {
+        processing.value = false
       }
     } else {
+      processing.value = false
       message.error(response?.message || '上传失败')
     }
   } else if (status === 'error') {
+    processing.value = false
     message.error('上传失败')
   }
 }

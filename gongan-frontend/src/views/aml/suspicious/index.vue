@@ -306,7 +306,11 @@ function getProgressColor(score) {
 }
 
 function renderMarkdown(content) {
-  return marked(content || '')
+  if (!content) return ''
+  return marked.parse(content, {
+    breaks: true,
+    gfm: true
+  })
 }
 
 async function fetchClueList() {
@@ -399,6 +403,7 @@ async function doAiAnalyze(clueId, force = false) {
     const res = await aiAnalyzeClue(clueId, force)
     analysisResult.value = res.analysisResult
     currentClue.value = res.clue
+    reportContent.value = res.clue.reportContent
     detailVisible.value = true
     
     if (force) {
@@ -487,22 +492,94 @@ onMounted(() => {
   
   .report-content {
     background: #fafafa;
-    padding: 16px;
-    border-radius: 4px;
-    max-height: 400px;
+    padding: 20px;
+    border-radius: 8px;
+    max-height: 500px;
     overflow-y: auto;
+    font-size: 14px;
+    line-height: 1.8;
     
-    :deep(h1), :deep(h2), :deep(h3) {
-      margin-top: 16px;
-      margin-bottom: 8px;
+    :deep(h1) {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 0 0 16px 0;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e8e8e8;
+      color: #1890ff;
     }
     
-    :deep(ul), :deep(ol) {
-      padding-left: 20px;
+    :deep(h2) {
+      font-size: 17px;
+      font-weight: 600;
+      margin: 20px 0 12px 0;
+      color: #262626;
+    }
+    
+    :deep(h3) {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 16px 0 8px 0;
+      color: #595959;
     }
     
     :deep(p) {
-      margin-bottom: 8px;
+      margin: 0 0 12px 0;
+      color: #333;
+    }
+    
+    :deep(ul), :deep(ol) {
+      padding-left: 24px;
+      margin: 8px 0;
+    }
+    
+    :deep(li) {
+      margin-bottom: 6px;
+    }
+    
+    :deep(strong) {
+      color: #262626;
+      font-weight: 600;
+    }
+    
+    :deep(code) {
+      background: #f0f0f0;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 13px;
+    }
+    
+    :deep(blockquote) {
+      border-left: 3px solid #1890ff;
+      padding-left: 12px;
+      margin: 12px 0;
+      color: #666;
+      background: #f6f6f6;
+      padding: 8px 12px;
+      border-radius: 0 4px 4px 0;
+    }
+    
+    :deep(table) {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      
+      th, td {
+        border: 1px solid #e8e8e8;
+        padding: 8px 12px;
+        text-align: left;
+      }
+      
+      th {
+        background: #fafafa;
+        font-weight: 600;
+      }
+    }
+    
+    :deep(hr) {
+      border: none;
+      border-top: 1px solid #e8e8e8;
+      margin: 16px 0;
     }
   }
 }
