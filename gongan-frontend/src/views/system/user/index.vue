@@ -1,5 +1,15 @@
 <template>
-  <div class="user-manage" :class="{ 'rainbow-mode': rainbowMode, 'dark-egg-mode': darkEggMode }">
+  <div 
+    class="user-manage" 
+    :class="{ 
+      'rainbow-mode': rainbowMode, 
+      'dark-egg-mode': darkEggMode,
+      'crazy-mode': crazyMode,
+      'flip-mode': flipMode
+    }"
+    @mousemove="handleMouseMove"
+    @scroll="handleScroll"
+  >
     <!-- 撒花容器 -->
     <div v-if="showConfetti" class="confetti-container">
       <div v-for="i in 50" :key="i" class="confetti" :style="confettiStyle(i)"></div>
@@ -8,6 +18,21 @@
     <!-- 星星特效容器 -->
     <div v-if="showStars" class="stars-container">
       <div v-for="i in 30" :key="i" class="star" :style="starStyle(i)"></div>
+    </div>
+
+    <!-- 鼠标拖尾容器 -->
+    <div v-if="showMouseTrail" class="mouse-trail-container">
+      <div 
+        v-for="(dot, index) in mouseTrailDots" 
+        :key="index" 
+        class="trail-dot"
+        :style="{ left: dot.x + 'px', top: dot.y + 'px', opacity: dot.opacity }"
+      ></div>
+    </div>
+
+    <!-- 烟花容器 -->
+    <div v-if="showFireworks" class="fireworks-container">
+      <div v-for="i in 20" :key="i" class="firework" :style="fireworkStyle(i)"></div>
     </div>
 
     <a-card>
@@ -44,10 +69,18 @@
         </a-form-item>
         <a-form-item>
           <a-space>
-            <a-button type="primary" @click="handleSearch">查询</a-button>
+            <a-button 
+              type="primary" 
+              @mousedown="handleSearchMouseDown"
+              @mouseup="handleSearchMouseUp"
+              @click="handleSearch"
+            >查询</a-button>
             <a-button @click="handleReset">重置</a-button>
             <a-button v-if="darkEggMode" type="primary" ghost @click="darkEggMode = false">
               退出暗黑彩蛋模式
+            </a-button>
+            <a-button v-if="crazyMode" type="primary" danger @click="crazyMode = false">
+              退出疯狂模式
             </a-button>
           </a-space>
         </a-form-item>
@@ -55,7 +88,12 @@
       
       <!-- 操作按钮 -->
       <div class="table-actions">
-        <a-button type="primary" @click="handleAdd">
+        <a-button 
+          type="primary" 
+          @click="handleAdd"
+          @mousedown="handleAddMouseDown"
+          @mouseup="handleAddMouseUp"
+        >
           <template #icon><PlusOutlined /></template>
           新增用户
         </a-button>
@@ -79,6 +117,7 @@
             <span 
               class="username-cell"
               :class="{ 'lucky-user': luckyUserIndex === index && showLuckyUser }"
+              @click="handleUsernameClick(record, index)"
             >
               {{ record.username }}
               <span v-if="luckyUserIndex === index && showLuckyUser" class="lucky-badge">
@@ -87,7 +126,11 @@
             </span>
           </template>
           <template v-if="column.key === 'status'">
-            <a-tag :color="record.status === 1 ? 'green' : 'red'">
+            <a-tag 
+              :color="record.status === 1 ? 'green' : 'red'"
+              class="status-tag-egg"
+              @click="handleStatusTagClick(record, index)"
+            >
               {{ record.status === 1 ? '启用' : '禁用' }}
             </a-tag>
           </template>
@@ -120,7 +163,7 @@
       :title="modalTitle"
       @ok="handleSubmit"
       :confirmLoading="submitLoading"
-      :class="{ 'modal-dance': modalDance }"
+      :class="{ 'modal-dance': modalDance, 'modal-spin': modalSpin }"
     >
       <a-form 
         ref="formRef"
@@ -162,7 +205,7 @@
       title="分配角色"
       @ok="handleRoleSubmit"
     >
-      <a-checkbox-group v-model:value="selectedRoles">
+      <a-checkbox-group v-model:value="selectedRoles" @change="handleRoleCheckboxChange">
         <a-row>
           <a-col :span="12" v-for="role in roleList" :key="role.id">
             <a-checkbox :value="role.id">{{ role.roleName }}</a-checkbox>
@@ -252,6 +295,8 @@ const titleClickCount = ref(0)
 const titleShake = ref(false)
 const rainbowMode = ref(false)
 const darkEggMode = ref(false)
+const crazyMode = ref(false)
+const flipMode = ref(false)
 const konamiActivated = ref(false)
 const showConfetti = ref(false)
 const showStars = ref(false)
@@ -260,17 +305,30 @@ const showLuckyUser = ref(false)
 const luckyUserIndex = ref(-1)
 const activeGenderEmoji = reactive({})
 const modalDance = ref(false)
+const modalSpin = ref(false)
 const easterEggModalVisible = ref(false)
 const easterEggTitle = ref('')
 const easterEggMessage = ref('')
 const easterEggEmoji = ref('')
 
+// 新增交互式彩蛋状态
+const showMouseTrail = ref(false)
+const mouseTrailDots = ref([])
+const showFireworks = ref(false)
+const addClickCount = ref(0)
+const searchHoldTimer = ref(null)
+const usernameClickMap = reactive({})
+const statusTagClickMap = reactive({})
+const roleSelectHistory = ref([])
+
 // 定时器引用（用于清理）
 let titleClickTimer = null
 let easterEggTimer = null
 const timeoutHandles = []
+let mouseMoveRAF = null
 
 const titleText = computed(() => {
+  if (crazyMode.value) return '🤪 疯狂用户管理'
   if (darkEggMode.value) return '🌙 暗黑用户管理'
   if (rainbowMode.value) return '🌈 彩虹用户管理'
   return '用户管理'
@@ -284,7 +342,13 @@ function discoverEasterEgg(name) {
     discoveredEasterEggs.value.add(name)
     if (discoveredEasterEggs.value.size >= 5) {
       showSecretBadge.value = true
-      showEasterEggModal('🏆 彩蛋猎人', '恭喜你发现了所有彩蛋！你是一名真正的探索者！', '🏆')
+      showEasterEggModal('🏆 彩蛋猎人', '恭喜你发现了5个彩蛋！你是一名真正的探索者！', '🏆')
+    }
+    if (discoveredEasterEggs.value.size >= 10) {
+      showFireworks.value = true
+      showEasterEggModal('🎆 彩蛋大师', '太厉害了！你已发现10个彩蛋！烟花庆祝！', '🎆')
+      const t = setTimeout(() => showFireworks.value = false, 4000)
+      timeoutHandles.push(t)
     }
   }
 }
@@ -305,14 +369,11 @@ function handleTitleClick() {
   titleClickCount.value++
   
   if (titleClickCount.value === 5) {
-    // 触发彩虹模式
     rainbowMode.value = true
     titleShake.value = true
     discoverEasterEgg('rainbow')
     showEasterEggModal('🌈 彩虹模式', '你发现了彩虹模式！页面变得五彩斑斓~', '🌈')
-    const t1 = setTimeout(() => {
-      titleShake.value = false
-    }, 1000)
+    const t1 = setTimeout(() => titleShake.value = false, 1000)
     timeoutHandles.push(t1)
     const t2 = setTimeout(() => {
       rainbowMode.value = false
@@ -320,14 +381,12 @@ function handleTitleClick() {
     }, 10000)
     timeoutHandles.push(t2)
   } else if (titleClickCount.value === 10) {
-    // 触发暗黑模式
     darkEggMode.value = true
     discoverEasterEgg('darkMode')
     showEasterEggModal('🌙 暗黑彩蛋模式', '欢迎来到暗黑世界...', '🌙')
     titleClickCount.value = 0
   }
   
-  // 3秒内没有继续点击则重置
   if (titleClickTimer) clearTimeout(titleClickTimer)
   titleClickTimer = setTimeout(() => {
     if (titleClickCount.value < 5) {
@@ -341,9 +400,8 @@ function handleTitleDblClick() {
   showConfetti.value = true
   discoverEasterEgg('confetti')
   showEasterEggModal('🎉 撒花庆祝', '双击标题触发撒花特效！', '🎉')
-  setTimeout(() => {
-    showConfetti.value = false
-  }, 3000)
+  const t = setTimeout(() => showConfetti.value = false, 3000)
+  timeoutHandles.push(t)
 }
 
 // ========== 彩蛋3: Konami Code ==========
@@ -358,9 +416,7 @@ function handleKonamiCode(e) {
       showStars.value = true
       discoverEasterEgg('konami')
       showEasterEggModal('🎮 Konami Code', '↑↑↓↓←→←→BA - 经典作弊码激活！', '🎮')
-      const t = setTimeout(() => {
-        showStars.value = false
-      }, 5000)
+      const t = setTimeout(() => showStars.value = false, 5000)
       timeoutHandles.push(t)
       konamiIndex.value = 0
     }
@@ -370,7 +426,7 @@ function handleKonamiCode(e) {
 }
 
 // ========== 彩蛋4: 搜索框输入特定文字 ==========
-const secretWords = ['hello', 'admin', 'secret', 'matrix', 'hack']
+const secretWords = ['hello', 'admin', 'secret', 'matrix', 'hack', 'party', 'love', 'magic']
 let searchBuffer = ''
 
 function handleSearchInputKeyup(e) {
@@ -405,7 +461,6 @@ function triggerSecretWordEgg(word) {
       break
     case 'secret':
       discoverEasterEgg('secret')
-      // 修复：检查用户列表是否为空
       if (userList.value.length > 0) {
         showLuckyUser.value = true
         luckyUserIndex.value = Math.floor(Math.random() * userList.value.length)
@@ -433,6 +488,31 @@ function triggerSecretWordEgg(word) {
         rainbowMode.value = false
       }, 5000)
       timeoutHandles.push(t3)
+      break
+    case 'party':
+      discoverEasterEgg('party')
+      showConfetti.value = true
+      crazyMode.value = true
+      showEasterEggModal('🥳 派对模式', 'Party time! 让我们一起狂欢！', '🥳')
+      const t4 = setTimeout(() => {
+        showConfetti.value = false
+        crazyMode.value = false
+      }, 8000)
+      timeoutHandles.push(t4)
+      break
+    case 'love':
+      discoverEasterEgg('love')
+      rainbowMode.value = true
+      showEasterEggModal('❤️ 爱心彩蛋', '感谢你的使用！我们爱你！', '❤️')
+      const t5 = setTimeout(() => rainbowMode.value = false, 5000)
+      timeoutHandles.push(t5)
+      break
+    case 'magic':
+      discoverEasterEgg('magic')
+      flipMode.value = true
+      showEasterEggModal('✨ 魔法彩蛋', 'Abracadabra! 翻转世界！', '✨')
+      const t6 = setTimeout(() => flipMode.value = false, 3000)
+      timeoutHandles.push(t6)
       break
   }
 }
@@ -467,9 +547,162 @@ function customRow(record, index) {
   }
 }
 
+// ========== 新彩蛋7: 鼠标拖尾效果 ==========
+let lastMouseMoveTime = 0
+function handleMouseMove(e) {
+  if (!showMouseTrail.value) return
+  
+  const now = Date.now()
+  if (now - lastMouseMoveTime < 16) return // 限制帧率
+  lastMouseMoveTime = now
+  
+  cancelAnimationFrame(mouseMoveRAF)
+  mouseMoveRAF = requestAnimationFrame(() => {
+    mouseTrailDots.value.push({
+      x: e.clientX,
+      y: e.clientY,
+      opacity: 1
+    })
+    
+    // 保持最多20个点
+    if (mouseTrailDots.value.length > 20) {
+      mouseTrailDots.value.shift()
+    }
+    
+    // 淡出效果
+    mouseTrailDots.value.forEach((dot, i) => {
+      dot.opacity = (i + 1) / mouseTrailDots.value.length * 0.8
+    })
+  })
+}
+
+// ========== 新彩蛋8: 快速连点新增按钮 ==========
+let addClickTimer = null
+function handleAddMouseDown() {
+  addClickCount.value++
+  
+  if (addClickTimer) clearTimeout(addClickTimer)
+  addClickTimer = setTimeout(() => {
+    addClickCount.value = 0
+  }, 1000)
+  
+  if (addClickCount.value >= 5) {
+    discoverEasterEgg('crazyAdd')
+    crazyMode.value = true
+    showMouseTrail.value = true
+    showConfetti.value = true
+    showEasterEggModal('🤪 疯狂模式', '你触发了疯狂模式！快速连点就是爽！', '🤪')
+    const t = setTimeout(() => {
+      crazyMode.value = false
+      showMouseTrail.value = false
+      showConfetti.value = false
+      addClickCount.value = 0
+    }, 6000)
+    timeoutHandles.push(t)
+  }
+}
+
+function handleAddMouseUp() {
+  // 不需要处理
+}
+
+// ========== 新彩蛋9: 长按查询按钮 ==========
+function handleSearchMouseDown() {
+  searchHoldTimer.value = setTimeout(() => {
+    discoverEasterEgg('longPress')
+    showStars.value = true
+    modalSpin.value = true
+    showEasterEggModal('⏱️ 长按彩蛋', '耐心等待终有回报！你发现了长按彩蛋！', '⏱️')
+    const t = setTimeout(() => {
+      showStars.value = false
+      modalSpin.value = false
+    }, 5000)
+    timeoutHandles.push(t)
+  }, 2000)
+}
+
+function handleSearchMouseUp() {
+  if (searchHoldTimer.value) {
+    clearTimeout(searchHoldTimer.value)
+    searchHoldTimer.value = null
+  }
+}
+
+// ========== 新彩蛋10: 连续点击用户名 ==========
+function handleUsernameClick(record, index) {
+  const userId = record.id
+  if (!usernameClickMap[userId]) {
+    usernameClickMap[userId] = 0
+  }
+  usernameClickMap[userId]++
+  
+  setTimeout(() => {
+    if (usernameClickMap[userId] >= 5) {
+      discoverEasterEgg('usernameClick')
+      luckyUserIndex.value = index
+      showLuckyUser.value = true
+      showEasterEggModal('👤 用户名彩蛋', `恭喜！${record.username} 被选为幸运用户！`, '👤')
+      const t = setTimeout(() => {
+        showLuckyUser.value = false
+        usernameClickMap[userId] = 0
+      }, 5000)
+      timeoutHandles.push(t)
+    }
+  }, 500)
+  
+  // 重置计数
+  setTimeout(() => {
+    if (usernameClickMap[userId] < 5) {
+      usernameClickMap[userId] = 0
+    }
+  }, 2000)
+}
+
+// ========== 新彩蛋11: 连续点击状态标签 ==========
+function handleStatusTagClick(record, index) {
+  const key = `${record.id}-${record.status}`
+  if (!statusTagClickMap[key]) {
+    statusTagClickMap[key] = 0
+  }
+  statusTagClickMap[key]++
+  
+  setTimeout(() => {
+    if (statusTagClickMap[key] >= 5) {
+      discoverEasterEgg('statusTagClick')
+      showConfetti.value = true
+      showEasterEggModal('🏷️ 状态标签彩蛋', '你真有耐心！状态标签也可以这么好玩！', '🏷️')
+      const t = setTimeout(() => {
+        showConfetti.value = false
+        statusTagClickMap[key] = 0
+      }, 3000)
+      timeoutHandles.push(t)
+    }
+  }, 500)
+  
+  setTimeout(() => {
+    if (statusTagClickMap[key] < 5) {
+      statusTagClickMap[key] = 0
+    }
+  }, 2000)
+}
+
+// ========== 新彩蛋12: 角色选择彩蛋 ==========
+function handleRoleCheckboxChange(selected) {
+  roleSelectHistory.value = [...selected]
+  
+  // 选择所有角色触发彩蛋
+  if (selected.length === roleList.value.length && roleList.value.length > 0) {
+    discoverEasterEgg('allRoles')
+    showConfetti.value = true
+    showEasterEggModal('👑 全角色彩蛋', '哇！你选择了所有角色！权力满满！', '👑')
+    const t = setTimeout(() => showConfetti.value = false, 3000)
+    timeoutHandles.push(t)
+  }
+}
+
 // ========== 撒花样式 ==========
 function confettiStyle(i) {
-  const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff']
+  const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ff6b6b', '#4ecdc4']
   return {
     left: `${Math.random() * 100}%`,
     backgroundColor: colors[i % colors.length],
@@ -484,6 +717,18 @@ function starStyle(i) {
     left: `${Math.random() * 100}%`,
     top: `${Math.random() * 100}%`,
     animationDelay: `${Math.random() * 1}s`,
+    animationDuration: `${1 + Math.random()}s`
+  }
+}
+
+// ========== 烟花样式 ==========
+function fireworkStyle(i) {
+  const colors = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#ff00ff', '#ff6b6b']
+  const angle = (i / 20) * 360
+  return {
+    '--angle': `${angle}deg`,
+    '--color': colors[i % colors.length],
+    animationDelay: `${Math.random() * 0.5}s`,
     animationDuration: `${1 + Math.random()}s`
   }
 }
@@ -581,6 +826,7 @@ async function handleDelete(record) {
 function handleAssignRole(record) {
   currentUserId.value = record.id
   selectedRoles.value = []
+  roleSelectHistory.value = []
   roleModalVisible.value = true
 }
 
@@ -607,15 +853,15 @@ async function fetchRoleList() {
 onMounted(() => {
   fetchUserList()
   fetchRoleList()
-  // 监听键盘事件（Konami Code）
   window.addEventListener('keydown', handleKonamiCode)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKonamiCode)
-  // 清理所有定时器
   if (titleClickTimer) clearTimeout(titleClickTimer)
   if (easterEggTimer) clearTimeout(easterEggTimer)
+  if (addClickTimer) clearTimeout(addClickTimer)
+  if (mouseMoveRAF) cancelAnimationFrame(mouseMoveRAF)
   timeoutHandles.forEach(handle => clearTimeout(handle))
 })
 </script>
@@ -624,6 +870,7 @@ onUnmounted(() => {
 .user-manage {
   position: relative;
   transition: all 0.5s ease;
+  min-height: 100vh;
   
   &.rainbow-mode {
     animation: rainbow-bg 3s linear infinite;
@@ -671,6 +918,18 @@ onUnmounted(() => {
     }
   }
   
+  &.crazy-mode {
+    animation: crazy-shake 0.3s infinite;
+    background: linear-gradient(45deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff);
+    background-size: 400% 400%;
+    animation: crazy-bg 2s ease infinite, crazy-shake 0.1s infinite;
+  }
+  
+  &.flip-mode {
+    animation: flip-page 0.5s ease;
+    transform: rotateY(360deg);
+  }
+  
   .title-egg {
     cursor: pointer;
     user-select: none;
@@ -703,17 +962,33 @@ onUnmounted(() => {
   }
   
   .username-cell {
+    cursor: pointer;
     transition: all 0.3s ease;
+    
+    &:hover {
+      color: #1890ff;
+    }
     
     &.lucky-user {
       color: #faad14;
       font-weight: bold;
       text-shadow: 0 0 10px rgba(250, 173, 20, 0.5);
+      animation: glow 1s ease-in-out infinite alternate;
     }
     
     .lucky-badge {
       margin-left: 8px;
       font-size: 12px;
+    }
+  }
+  
+  .status-tag-egg {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      transform: scale(1.1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     }
   }
   
@@ -732,6 +1007,61 @@ onUnmounted(() => {
   
   .table-actions {
     margin-bottom: 16px;
+  }
+}
+
+// 鼠标拖尾
+.mouse-trail-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9998;
+  
+  .trail-dot {
+    position: fixed;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    transition: opacity 0.1s ease;
+  }
+}
+
+// 烟花效果
+.fireworks-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 200px;
+  height: 200px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 9999;
+  
+  .firework {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color);
+    animation: firework-explode 1.5s ease-out forwards;
+    transform: rotate(var(--angle)) translateX(0);
+  }
+}
+
+@keyframes firework-explode {
+  0% {
+    transform: rotate(var(--angle)) translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--angle)) translateX(100px);
+    opacity: 0;
   }
 }
 
@@ -811,6 +1141,26 @@ onUnmounted(() => {
   100% { background-color: rgba(255, 0, 0, 0.1); }
 }
 
+// 疯狂模式动画
+@keyframes crazy-bg {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes crazy-shake {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-5px, 5px); }
+  50% { transform: translate(5px, -5px); }
+  75% { transform: translate(-5px, -5px); }
+}
+
+// 翻转动画
+@keyframes flip-page {
+  0% { transform: rotateY(0deg); }
+  100% { transform: rotateY(360deg); }
+}
+
 // 抖动动画
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
@@ -836,6 +1186,16 @@ onUnmounted(() => {
   50% { transform: translateY(-10px); }
 }
 
+// 发光动画
+@keyframes glow {
+  from {
+    text-shadow: 0 0 5px #faad14, 0 0 10px #faad14;
+  }
+  to {
+    text-shadow: 0 0 10px #faad14, 0 0 20px #faad14, 0 0 30px #faad14;
+  }
+}
+
 // 弹窗舞蹈动画
 :deep(.modal-dance) {
   .ant-modal-content {
@@ -843,10 +1203,22 @@ onUnmounted(() => {
   }
 }
 
+:deep(.modal-spin) {
+  .ant-modal-content {
+    animation: spin-modal 0.5s ease-in-out;
+  }
+}
+
 @keyframes dance {
   0%, 100% { transform: rotate(0deg); }
   25% { transform: rotate(-3deg); }
   75% { transform: rotate(3deg); }
+}
+
+@keyframes spin-modal {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(0.8); }
+  100% { transform: rotate(360deg) scale(1); }
 }
 
 // 彩蛋弹窗样式
