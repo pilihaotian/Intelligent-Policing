@@ -1,5 +1,6 @@
 package com.gongan.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -38,13 +39,15 @@ public class NavIntent extends BaseEntity {
     private String targetPath;
 
     /**
-     * 关联菜单ID
+     * 关联菜单ID（表中无此列，不参与持久化）
      */
+    @TableField(exist = false)
     private Long menuId;
 
     /**
-     * 示例提示词
+     * 示例提示词（表中无此列时不参与持久化，可执行 ALTER TABLE nav_intent ADD COLUMN example_prompts TEXT 后去掉 @TableField(exist = false)）
      */
+    @TableField(exist = false)
     private String examplePrompts;
 
     /**

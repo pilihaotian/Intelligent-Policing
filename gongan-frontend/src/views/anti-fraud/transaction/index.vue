@@ -87,8 +87,10 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { getTransactionList } from '@/api/fraud'
 
+const route = useRoute()
 const loading = ref(false)
 const detailVisible = ref(false)
 const currentTransaction = ref(null)
@@ -187,7 +189,13 @@ function handleView(record) {
 }
 
 onMounted(() => {
-  fetchTransactionList()
+  const customerId = route.query.customerId
+  if (customerId) {
+    searchForm.customerId = customerId
+    handleSearch()
+  } else {
+    fetchTransactionList()
+  }
 })
 </script>
 

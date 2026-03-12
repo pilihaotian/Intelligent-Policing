@@ -222,10 +222,12 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { ThunderboltOutlined, ExportOutlined, HistoryOutlined, FileTextOutlined } from '@ant-design/icons-vue'
 import { 
   getSuspiciousCustomers, 
+  getCustomerDetail,
   getCustomerTransactions, 
   analyzeCustomer,
   reanalyzeCase,
@@ -235,6 +237,7 @@ import {
 } from '@/api/fraud'
 import { marked } from 'marked'
 
+const route = useRoute()
 const loading = ref(false)
 const analyzing = ref(false)
 const generatingReport = ref(false)
@@ -311,7 +314,8 @@ function renderMarkdown(content) {
 async function fetchCustomerList() {
   loading.value = true
   try {
-    const res = await getSuspiciousCustomers({ keyword: searchKeyword.value })
+    const params = { customerName: searchKeyword.value || undefined }
+    const res = await getSuspiciousCustomers(params)
     customerList.value = res.records || []
   } catch (error) {
     console.error(error)
@@ -493,8 +497,27 @@ async function reanalyzeFromHistory(caseData) {
   await handleAnalyze()
 }
 
-onMounted(() => {
-  fetchCustomerList()
+onMounted(async () => {
+  const q = route.query
+  const customerId = q.customerId ? Number(q.customerId) : null
+  const customerName = q.customerName || null
+  if (customerId) {
+    try {
+      const customer = await getCustomerDetail(customerId)
+      if (customer) await selectCustomer(customer)
+    } catch (e) {
+      console.error(e)
+      fetchCustomerList()
+    }
+    return
+  }
+  if (customerName) {
+    searchKeyword.value = customerName
+  }
+  await fetchCustomerList()
+  if (customerName && customerList.value.length === 1) {
+    await selectCustomer(customerList.value[0])
+  }
 })
 </script>
 
