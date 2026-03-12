@@ -51,9 +51,9 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
      * 批量插入用户角色关联
      */
     @Insert("<script>" +
-            "INSERT INTO sys_user_role (user_id, role_id, created_by, created_time) VALUES " +
+            "INSERT INTO sys_user_role (user_id, role_id) VALUES " +
             "<foreach collection='roleIds' item='roleId' separator=','>" +
-            "(#{userId}, #{roleId}, 'system', CURRENT_TIMESTAMP)" +
+            "(#{userId}, #{roleId})" +
             "</foreach>" +
             "</script>")
     int insertUserRoles(@Param("userId") Long userId, @Param("roleIds") List<Long> roleIds);
