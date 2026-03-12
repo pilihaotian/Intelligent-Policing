@@ -350,7 +350,7 @@ llm:
   api-url: http://localhost:11434/v1    # Ollama 本地服务
   # api-url: https://api.openai.com/v1  # 或 OpenAI API
   api-key: your-api-key
-  model: qwen2.5:7b                      # 模型名称
+  model: qwen3:1.7b                      # 模型名称
   max-tokens: 4096
   temperature: 0.7
 ```
@@ -365,7 +365,7 @@ llm:
 
 # 下载模型
 ollama pull qwen3-embedding:0.6b
-ollama pull qwen2.5:7b
+ollama pull qwen3:1.7b
 
 # 修改最大模型加载为2，或者其他值
 export OLLAMA_MAX_LOADED_MODELS=2
