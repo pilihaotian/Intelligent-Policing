@@ -72,19 +72,6 @@ const routes = [
         ]
       },
       {
-        path: 'smart-nav',
-        redirect: '/smart-nav/entry',
-        meta: { title: '智能导航' },
-        children: [
-          {
-            path: 'entry',
-            name: 'SmartNav',
-            component: () => import('@/views/smart-nav/entry/index.vue'),
-            meta: { title: '智能导航' }
-          }
-        ]
-      },
-      {
         path: 'anti-fraud',
         redirect: '/anti-fraud/customer',
         meta: { title: '刑侦研判' },

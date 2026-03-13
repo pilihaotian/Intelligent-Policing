@@ -30,25 +30,22 @@ INSERT INTO sys_role (role_code, role_name, role_type, description, status, crea
 
 -- INSERT 菜单数据
 INSERT INTO sys_menu (parent_id, menu_name, menu_code, menu_type, path, component, icon, permission, sort_order, status, created_by) VALUES
-(0, '工作台', 'dashboard', 1, '/dashboard', 'views/dashboard/index.vue', 'HomeOutlined', 'dashboard:view', 1, 1, 'system'),
-(0, '系统管理', 'system', 0, '/system', 'Layout', 'SettingOutlined', 'system:view', 2, 1, 'system'),
-(2, '用户管理', 'system:user', 1, '/system/user', 'views/system/user/index.vue', 'UserOutlined', 'system:user:list', 1, 1, 'system'),
-(2, '角色管理', 'system:role', 1, '/system/role', 'views/system/role/index.vue', 'TeamOutlined', 'system:role:list', 2, 1, 'system'),
-(2, '机构管理', 'system:org', 1, '/system/org', 'views/system/org/index.vue', 'BankOutlined', 'system:org:list', 3, 1, 'system'),
-(0, '执法办案', 'ops-risk', 0, '/ops-risk', 'Layout', 'FileTextOutlined', 'ops:view', 3, 1, 'system'),
-(6, '案件信息填报', 'ops:document', 1, '/ops-risk/document', 'views/ops-risk/document/index.vue', 'FileOutlined', 'ops:document:list', 1, 1, 'system'),
-(0, '智能助手', 'ai-assistant', 0, '/ai-assistant', 'Layout', 'RobotOutlined', 'ai:view', 4, 1, 'system'),
-(9, '知识库管理', 'ai:kb', 1, '/ai-assistant/kb', 'views/ai-assistant/kb/index.vue', 'DatabaseOutlined', 'ai:kb:list', 1, 1, 'system'),
-(9, '智能问答', 'ai:chat', 1, '/ai-assistant/chat', 'views/ai-assistant/chat/index.vue', 'MessageOutlined', 'ai:chat:view', 2, 1, 'system'),
-(0, '智能导航', 'smart-nav', 0, '/smart-nav', 'Layout', 'CompassOutlined', 'nav:view', 5, 1, 'system'),
-(12, '导航入口', 'nav:entry', 1, '/smart-nav/entry', 'views/smart-nav/entry/index.vue', 'EnvironmentOutlined', 'nav:entry:use', 1, 1, 'system'),
-(0, '刑侦研判', 'anti-fraud', 0, '/anti-fraud', 'Layout', 'SecurityScanOutlined', 'fraud:view', 6, 1, 'system'),
-(14, '重点人员', 'fraud:customer', 1, '/anti-fraud/customer', 'views/anti-fraud/customer/index.vue', 'UserOutlined', 'fraud:customer:list', 1, 1, 'system'),
-(14, '资金流水', 'fraud:transaction', 1, '/anti-fraud/transaction', 'views/anti-fraud/transaction/index.vue', 'TransactionOutlined', 'fraud:transaction:list', 2, 1, 'system'),
-(14, '案件分析', 'fraud:analysis', 1, '/anti-fraud/analysis', 'views/anti-fraud/analysis/index.vue', 'AnalysisOutlined', 'fraud:analysis:view', 3, 1, 'system'),
-(0, '治安管理', 'aml', 0, '/aml', 'Layout', 'EyeOutlined', 'aml:view', 7, 1, 'system'),
-(18, '人员核查', 'aml:dd', 1, '/aml/due-diligence', 'views/aml/due-diligence/index.vue', 'AuditOutlined', 'aml:dd:list', 1, 1, 'system'),
-(18, '线索管理', 'aml:suspicious', 1, '/aml/suspicious', 'views/aml/suspicious/index.vue', 'WarningOutlined', 'aml:suspicious:list', 2, 1, 'system');
+(0, '系统管理', 'system', 0, '/system', 'Layout', 'SettingOutlined', 'system:view', 1, 1, 'system'),
+(1, '用户管理', 'system:user', 1, '/system/user', 'views/system/user/index.vue', 'UserOutlined', 'system:user:list', 1, 1, 'system'),
+(1, '角色管理', 'system:role', 1, '/system/role', 'views/system/role/index.vue', 'TeamOutlined', 'system:role:list', 2, 1, 'system'),
+(1, '机构管理', 'system:org', 1, '/system/org', 'views/system/org/index.vue', 'BankOutlined', 'system:org:list', 3, 1, 'system'),
+(0, '执法办案', 'ops-risk', 0, '/ops-risk', 'Layout', 'FileTextOutlined', 'ops:view', 2, 1, 'system'),
+(5, '案件信息填报', 'ops:document', 1, '/ops-risk/document', 'views/ops-risk/document/index.vue', 'FileOutlined', 'ops:document:list', 1, 1, 'system'),
+(0, '智能助手', 'ai-assistant', 0, '/ai-assistant', 'Layout', 'RobotOutlined', 'ai:view', 3, 1, 'system'),
+(7, '知识库管理', 'ai:kb', 1, '/ai-assistant/kb', 'views/ai-assistant/kb/index.vue', 'DatabaseOutlined', 'ai:kb:list', 1, 1, 'system'),
+(7, '智能问答', 'ai:chat', 1, '/ai-assistant/chat', 'views/ai-assistant/chat/index.vue', 'MessageOutlined', 'ai:chat:view', 2, 1, 'system'),
+(0, '刑侦研判', 'anti-fraud', 0, '/anti-fraud', 'Layout', 'SecurityScanOutlined', 'fraud:view', 4, 1, 'system'),
+(10, '重点人员', 'fraud:customer', 1, '/anti-fraud/customer', 'views/anti-fraud/customer/index.vue', 'UserOutlined', 'fraud:customer:list', 1, 1, 'system'),
+(10, '资金流水', 'fraud:transaction', 1, '/anti-fraud/transaction', 'views/anti-fraud/transaction/index.vue', 'TransactionOutlined', 'fraud:transaction:list', 2, 1, 'system'),
+(10, '案件分析', 'fraud:analysis', 1, '/anti-fraud/analysis', 'views/anti-fraud/analysis/index.vue', 'AnalysisOutlined', 'fraud:analysis:view', 3, 1, 'system'),
+(0, '治安管理', 'aml', 0, '/aml', 'Layout', 'EyeOutlined', 'aml:view', 5, 1, 'system'),
+(14, '人员核查', 'aml:dd', 1, '/aml/due-diligence', 'views/aml/due-diligence/index.vue', 'AuditOutlined', 'aml:dd:list', 1, 1, 'system'),
+(14, '线索管理', 'aml:suspicious', 1, '/aml/suspicious', 'views/aml/suspicious/index.vue', 'WarningOutlined', 'aml:suspicious:list', 2, 1, 'system');
 
 -- INSERT 用户角色关联
 INSERT INTO sys_user_role (user_id, role_id) VALUES
