@@ -29,9 +29,15 @@ public class NavIntent extends BaseEntity {
     private String description;
 
     /**
-     * 关键词数组
+     * 关键词（逗号分隔）
      */
     private String keywords;
+
+    /**
+     * 同义词（逗号分隔）
+     */
+    @TableField(exist = false)
+    private String synonyms;
 
     /**
      * 目标路径
@@ -39,19 +45,36 @@ public class NavIntent extends BaseEntity {
     private String targetPath;
 
     /**
-     * 关联菜单ID（表中无此列，不参与持久化）
+     * 关联菜单ID
      */
     @TableField(exist = false)
     private Long menuId;
 
     /**
-     * 示例提示词（表中无此列时不参与持久化，可执行 ALTER TABLE nav_intent ADD COLUMN example_prompts TEXT 后去掉 @TableField(exist = false)）
+     * 示例提示词（数据库表中无此字段）
      */
     @TableField(exist = false)
     private String examplePrompts;
 
     /**
-     * 状态
+     * 图标
+     */
+    @TableField(exist = false)
+    private String icon;
+
+    /**
+     * 分类（用于分组展示）
+     */
+    @TableField(exist = false)
+    private String category;
+
+    /**
+     * 权重（用于排序）
+     */
+    private Integer priority;
+
+    /**
+     * 状态（1启用，0禁用）
      */
     private Integer status;
 }

@@ -38,11 +38,6 @@
           <a-menu-item key="ai-chat">智能问答</a-menu-item>
         </a-sub-menu>
         
-        <a-menu-item key="smart-nav">
-          <CompassOutlined />
-          <span>智能导航</span>
-        </a-menu-item>
-        
         <a-sub-menu key="anti-fraud">
           <template #icon><SecurityScanOutlined /></template>
           <template #title>刑侦研判</template>
@@ -104,6 +99,15 @@
         </router-view>
       </a-layout-content>
     </a-layout>
+    
+    <!-- 智能导航浮动按钮 -->
+    <div class="smart-nav-float-btn" @click="openSmartNav">
+      <RobotOutlined class="float-icon" />
+      <span class="pulse-ring"></span>
+    </div>
+    
+    <!-- 智能导航侧边栏 -->
+    <SmartNavDrawer ref="smartNavRef" />
   </a-layout>
 </template>
 
@@ -111,11 +115,11 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
+import SmartNavDrawer from '@/components/SmartNavDrawer.vue'
 import {
   SettingOutlined,
   FileTextOutlined,
   RobotOutlined,
-  CompassOutlined,
   SecurityScanOutlined,
   EyeOutlined,
   MenuFoldOutlined,
@@ -129,6 +133,7 @@ const userStore = useUserStore()
 
 const collapsed = ref(false)
 const selectedKeys = ref(['system-user'])
+const smartNavRef = ref(null)
 
 const userInfo = computed(() => userStore.userInfo)
 
@@ -139,7 +144,6 @@ const routeMap = {
   'ops-document': '/ops-risk/document',
   'ai-kb': '/ai-assistant/kb',
   'ai-chat': '/ai-assistant/chat',
-  'smart-nav': '/smart-nav/entry',
   'fraud-customer': '/anti-fraud/customer',
   'fraud-transaction': '/anti-fraud/transaction',
   'fraud-analysis': '/anti-fraud/analysis',
@@ -157,6 +161,10 @@ function handleMenuClick({ key }) {
 function handleLogout() {
   userStore.logout()
   router.push('/login')
+}
+
+function openSmartNav() {
+  smartNavRef.value?.open()
 }
 </script>
 
@@ -221,5 +229,59 @@ function handleLogout() {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+// 智能导航浮动按钮
+.smart-nav-float-btn {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 24px rgba(102, 126, 234, 0.5);
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+  
+  .float-icon {
+    font-size: 24px;
+    color: white;
+  }
+  
+  // 脉冲动画
+  .pulse-ring {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: rgba(102, 126, 234, 0.4);
+    animation: pulse 2s ease-out infinite;
+    pointer-events: none;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
 }
 </style>

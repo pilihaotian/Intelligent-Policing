@@ -83,7 +83,7 @@ public class LLMClient {
         try {
             JSONObject requestBody = new JSONObject();
             requestBody.put("model", llmProperties.getModel());
-            requestBody.put("max_tokens", 256);
+            requestBody.put("max_tokens", 8192); // 增加 token 限制，适应批量关键词生成
             requestBody.put("temperature", 0.0);
             requestBody.put("response_format", new JSONObject().fluentPut("type", "json_object"));
 
