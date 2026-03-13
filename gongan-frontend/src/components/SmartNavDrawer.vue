@@ -465,87 +465,88 @@ watch(searchResult, (val) => {
 </script>
 
 <style lang="less" scoped>
+@primary: #1890ff;
+@primary-hover: #40a9ff;
+@primary-light: #e6f7ff;
+@primary-border: #91d5ff;
+
 .smart-nav-drawer {
   :deep(.ant-drawer-body) {
     display: flex;
     flex-direction: column;
     height: 100%;
   }
+  :deep(.ant-drawer-content) {
+    background: #f5f7fa;
+  }
 }
 
-// 头部
 .drawer-header {
   position: relative;
-  padding: 16px;
+  padding: 20px 24px;
   overflow: hidden;
-  
   .header-bg {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(160deg, #001529 0%, #002766 50%, #003a8c 100%);
     z-index: 0;
-    
     &::before {
       content: '';
       position: absolute;
-      top: -50%;
-      right: -50%;
-      width: 100%;
-      height: 100%;
-      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+      top: -30%;
+      right: -20%;
+      width: 80%;
+      height: 80%;
+      background: radial-gradient(circle, rgba(24, 144, 255, 0.15) 0%, transparent 65%);
     }
   }
-  
   .header-content {
     position: relative;
     z-index: 1;
   }
-  
   .header-top {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
   }
-  
   .header-title {
     display: flex;
     align-items: center;
-    color: white;
-    font-size: 18px;
+    color: #fff;
+    font-size: 20px;
     font-weight: 600;
-    
+    letter-spacing: 0.5px;
     .robot-icon {
-      font-size: 24px;
-      margin-right: 8px;
+      font-size: 26px;
+      margin-right: 10px;
+      color: @primary;
       animation: float 3s ease-in-out infinite;
     }
   }
-  
   .header-actions {
     display: flex;
-    gap: 4px;
-    
+    gap: 6px;
     .sync-btn, .close-btn {
-      color: white;
-      font-size: 14px;
-      width: 32px;
-      height: 32px;
-      border-radius: 6px;
-      
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 16px;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
       &:hover {
-        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+        background: rgba(255, 255, 255, 0.15);
       }
     }
   }
-  
   .header-subtitle {
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 12px;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 13px;
     margin: 0;
+    line-height: 1.5;
   }
 }
 
@@ -554,141 +555,124 @@ watch(searchResult, (val) => {
   50% { transform: translateY(-4px); }
 }
 
-// 搜索区域
 .search-section {
-  padding: 12px 16px;
-  background: #f8f9fa;
+  padding: 20px 24px;
+  background: #fff;
   border-bottom: 1px solid #f0f0f0;
 }
 
 .search-wrapper {
   position: relative;
   display: flex;
-  gap: 8px;
-  
+  gap: 12px;
   .search-input {
     flex: 1;
     border-radius: 8px;
-    
     :deep(.ant-input-affix-wrapper) {
       border-radius: 8px;
+      padding: 10px 12px;
     }
   }
-  
   .search-btn {
     border-radius: 8px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: @primary;
     border: none;
     font-weight: 500;
-    
+    padding: 0 20px;
     &:hover {
-      opacity: 0.9;
+      background: @primary-hover;
     }
   }
-  
   .search-icon {
     color: #bfbfbf;
   }
 }
 
-// 下拉面板（搜索结果/建议）
 .dropdown-panel {
   position: absolute;
   top: 100%;
   left: 0;
   right: 0;
-  background: white;
+  background: #fff;
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  margin-top: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  margin-top: 8px;
   z-index: 100;
   overflow: hidden;
-  max-height: 180px;
+  max-height: 240px;
   overflow-y: auto;
-
+  border: 1px solid #f0f0f0;
   .result-item {
     display: flex;
     align-items: center;
-    padding: 10px 12px;
+    padding: 12px 16px;
     cursor: pointer;
     border-bottom: 1px solid #f5f5f5;
     transition: all 0.2s;
-
     &:hover {
-      background: linear-gradient(90deg, #f0f5ff 0%, #fff 100%);
+      background: @primary-light;
     }
-
     &:last-child {
       border-bottom: none;
     }
-
     &.best {
-      background: linear-gradient(90deg, #f6ffed 0%, #fff 100%);
+      background: @primary-light;
     }
-
     .result-index {
-      width: 18px;
-      height: 18px;
+      width: 22px;
+      height: 22px;
       border-radius: 50%;
-      background: #667eea;
-      color: white;
+      background: @primary;
+      color: #fff;
       text-align: center;
-      line-height: 18px;
-      font-size: 10px;
-      margin-right: 8px;
+      line-height: 22px;
+      font-size: 11px;
+      margin-right: 12px;
       flex-shrink: 0;
     }
-
     .result-name {
       flex: 1;
       font-weight: 500;
-      font-size: 13px;
+      font-size: 14px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-
     .result-confidence {
       font-size: 12px;
-      color: #999;
-      margin-right: 6px;
+      color: #8c8c8c;
+      margin-right: 8px;
     }
   }
-
   .no-result {
-    padding: 16px;
+    padding: 24px 16px;
     text-align: center;
-    color: #999;
-    font-size: 13px;
+    color: #8c8c8c;
+    font-size: 14px;
   }
-
   .suggestion-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 12px;
+    padding: 12px 16px;
     cursor: pointer;
     border-bottom: 1px solid #f5f5f5;
     transition: background 0.2s;
-
     &:hover {
-      background: linear-gradient(90deg, #f0f5ff 0%, #fff 100%);
+      background: @primary-light;
     }
-
     &:last-child {
       border-bottom: none;
     }
-
     .suggestion-name {
       font-weight: 500;
-      font-size: 13px;
-      color: #333;
+      font-size: 14px;
+      color: #262626;
     }
-
     .suggestion-desc {
-      font-size: 11px;
-      color: #999;
-      max-width: 120px;
+      font-size: 12px;
+      color: #8c8c8c;
+      max-width: 140px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -696,140 +680,135 @@ watch(searchResult, (val) => {
   }
 }
 
-// 快捷指令
 .shortcuts-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
+  gap: 10px;
+  margin-top: 16px;
 }
 
 .shortcut-tag {
   display: inline-flex;
   align-items: center;
-  padding: 3px 8px;
-  background: linear-gradient(135deg, #f0f5ff 0%, #fff 100%);
-  border-radius: 12px;
+  padding: 8px 14px;
+  background: #fff;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  border: 1px solid #e6e8eb;
-  font-size: 11px;
-
+  border: 1px solid #e8e8e8;
+  font-size: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   &:hover {
-    border-color: #667eea;
-    background: linear-gradient(135deg, #e6f0ff 0%, #fff 100%);
+    border-color: @primary-border;
+    background: @primary-light;
   }
-
   .code {
     font-family: 'SF Mono', Monaco, monospace;
     font-weight: 600;
-    color: #667eea;
-    margin-right: 3px;
+    color: @primary;
+    margin-right: 6px;
   }
-
   .name {
-    color: #666;
+    color: #595959;
   }
 }
 
-// 内容区域
 .drawer-content {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 16px;
+  padding: 20px 24px;
 }
 
-// 图标网格区域
 .grid-section {
-  margin-bottom: 16px;
+  margin-bottom: 28px;
+}
+.grid-section:last-of-type {
+  margin-bottom: 20px;
 }
 
 .section-title {
   display: flex;
   align-items: center;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
-  color: #333;
-  margin-bottom: 10px;
-  
+  color: #262626;
+  margin-bottom: 14px;
   .anticon {
-    margin-right: 6px;
-    color: #667eea;
-    font-size: 14px;
+    margin-right: 8px;
+    color: @primary;
+    font-size: 16px;
   }
-  
   .refresh-btn {
     margin-left: auto;
     cursor: pointer;
-    color: #999;
-    font-size: 14px;
-    
+    color: #8c8c8c;
+    font-size: 16px;
     &:hover {
-      color: #667eea;
+      color: @primary;
     }
   }
 }
 
-// 图标网格（一行3个）
 .icon-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  gap: 14px;
 }
 
 .icon-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 12px 8px;
-  background: white;
-  border-radius: 10px;
+  padding: 18px 12px;
+  background: #fff;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
   border: 1px solid #f0f0f0;
   position: relative;
-
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   &:hover {
-    border-color: #667eea;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    border-color: @primary-border;
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.12);
     transform: translateY(-2px);
-    
     .item-icon {
-      transform: scale(1.1);
+      transform: scale(1.08);
     }
   }
-
   .item-badge {
     position: absolute;
-    top: 6px;
-    left: 6px;
-    width: 16px;
-    height: 16px;
+    top: 8px;
+    left: 8px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     background: #bfbfbf;
-    color: white;
+    color: #fff;
     text-align: center;
-    line-height: 16px;
-    font-size: 10px;
+    line-height: 20px;
+    font-size: 11px;
     font-weight: 600;
-
-    &.rank-1 { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); }
-    &.rank-2 { background: linear-gradient(135deg, #ffa502 0%, #ff7f50 100%); }
-    &.rank-3 { background: linear-gradient(135deg, #ffd93d 0%, #f9ca24 100%); }
+    &.rank-1 {
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+    }
+    &.rank-2 {
+      background: linear-gradient(135deg, #ffa502 0%, #ff7f50 100%);
+    }
+    &.rank-3 {
+      background: linear-gradient(135deg, #ffd93d 0%, #f9ca24 100%);
+    }
   }
-
   .item-icon {
-    font-size: 24px;
-    color: #667eea;
-    margin-bottom: 6px;
+    font-size: 28px;
+    color: @primary;
+    margin-bottom: 10px;
     transition: transform 0.2s;
   }
-
   .item-name {
-    font-size: 12px;
-    color: #333;
+    font-size: 13px;
+    color: #262626;
     text-align: center;
-    line-height: 1.3;
+    line-height: 1.4;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -837,66 +816,62 @@ watch(searchResult, (val) => {
   }
 }
 
-// 历史记录（固定高度滚动）
 .history-section {
+  .section-title {
+    margin-bottom: 12px;
+  }
   .history-list {
-    max-height: 150px;
+    max-height: 220px;
     overflow-y: auto;
-    background: #fafafa;
+    background: #fff;
     border-radius: 8px;
     padding: 8px;
+    border: 1px solid #f0f0f0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   }
 }
 
 .history-item {
   display: flex;
   align-items: center;
-  padding: 6px 8px;
-  border-radius: 4px;
+  padding: 10px 12px;
+  border-radius: 6px;
   cursor: pointer;
   transition: background 0.2s;
-
   &:hover {
-    background: white;
+    background: @primary-light;
   }
-
   .history-status {
-    margin-right: 8px;
-    
+    margin-right: 10px;
     .success-icon-sm {
       color: #52c41a;
-      font-size: 12px;
+      font-size: 14px;
     }
-    
     .fail-icon-sm {
       color: #ff4d4f;
-      font-size: 12px;
+      font-size: 14px;
     }
   }
-
   .history-content {
     flex: 1;
     min-width: 0;
-
     .history-query {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-size: 12px;
-      color: #333;
+      font-size: 13px;
+      color: #262626;
     }
-
     .history-target {
-      font-size: 11px;
-      color: #667eea;
-      margin-top: 1px;
+      font-size: 12px;
+      color: @primary;
+      margin-top: 2px;
     }
   }
-
   .history-time {
-    font-size: 10px;
-    color: #bfbfbf;
-    margin-left: 6px;
+    font-size: 12px;
+    color: #8c8c8c;
+    margin-left: 8px;
     flex-shrink: 0;
   }
 }
