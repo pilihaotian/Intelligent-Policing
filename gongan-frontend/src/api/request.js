@@ -28,7 +28,7 @@ request.interceptors.response.use(
     const res = response.data
     if (res.code !== 0 && res.code !== 200) {
       message.error(res.message || '请求失败')
-      if (res.code === 401) {
+      if (res.code === 401 || res.code === 403) {
         const userStore = useUserStore()
         userStore.logout()
         window.location.href = '/login'
@@ -38,7 +38,16 @@ request.interceptors.response.use(
     return res.data
   },
   error => {
-    message.error(error.message || '网络错误')
+    const status = error.response?.status
+    // token 过期或未授权时登出并跳转登录页
+    if (status === 401 || status === 403) {
+      const userStore = useUserStore()
+      userStore.logout()
+      message.error('登录已过期，请重新登录')
+      window.location.href = '/login'
+      return Promise.reject(error)
+    }
+    message.error(error.response?.data?.message || error.message || '网络错误')
     return Promise.reject(error)
   }
 )
