@@ -128,13 +128,25 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
+  
+  // 有 token 但没有用户信息时，自动获取
+  if (userStore.token && !userStore.userInfo) {
+    try {
+      await userStore.fetchUserInfo()
+    } catch (error) {
+      // 获取用户信息失败，清除 token 并跳转登录页
+      userStore.logout()
+      next('/login')
+      return
+    }
+  }
   
   if (to.meta.requiresAuth !== false && !userStore.token) {
     next('/login')
   } else if (to.path === '/login' && userStore.token) {
-    next('/dashboard')
+    next('/system/user')
   } else {
     next()
   }
